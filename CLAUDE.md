@@ -24,17 +24,12 @@
 
 ## ビルド・開発コマンド
 
-Tauriプロジェクト初期化後に使用するコマンド：
-
 ```bash
-# Tauriプロジェクトの初期化（Phase 0、未実施）
-cargo tauri init
-
 # 開発サーバー起動（フロントエンド＋バックエンド同時）
-cargo tauri dev
+npx tauri dev
 
-# プロダクションビルド
-cargo tauri build
+# プロダクションビルド（.app と .dmg を生成）
+npx tauri build
 
 # フロントエンドのみ
 npm run dev
