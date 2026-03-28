@@ -180,6 +180,48 @@ Tailwind v4はCSSファーストのアプローチ。設定ファイル不要。
 // カスタムCSS は Tailwindで表現できない場合のみ
 ```
 
+#### カラーパレットの利用
+
+色は `src/index.css` で定義した CSS カスタムプロパティを使用する。ハードコードした色を直接 Tailwind クラスに書かない。
+
+```tsx
+// ✅ Good: CSS カスタムプロパティを使用
+<div className="bg-[var(--color-bg-panel)] border-[var(--color-border)]">
+
+// ❌ Bad: 色をハードコード
+<div className="bg-[#141414] border-[#2a2a2a]">
+```
+
+#### Radix UI プリミティブの利用
+
+アクセシビリティが必要な UI 要素（タブ・ダイアログ・コンテキストメニュー等）は Radix UI のヘッドレスプリミティブをベースに実装する。
+
+```tsx
+// ✅ Good: Radix UI Tabs + Tailwind でスタイリング
+import * as Tabs from '@radix-ui/react-tabs'
+
+<Tabs.Root value={activeTab} onValueChange={setActiveTab}>
+  <Tabs.List className="flex h-9 border-b border-[var(--color-border)]">
+    <Tabs.Trigger
+      value="content"
+      className="px-4 text-[var(--color-text-muted)] data-[state=active]:text-[var(--color-text-primary)] data-[state=active]:border-b-2 data-[state=active]:border-[var(--color-accent)]"
+    >
+      コンテンツ
+    </Tabs.Trigger>
+  </Tabs.List>
+</Tabs.Root>
+```
+
+#### アイコンの利用
+
+アイコンは `lucide-react` を使用する。サイズは `size` props で指定する（`className` の `w-` / `h-` でも可）。
+
+```tsx
+import { FileText, Folder, Terminal } from 'lucide-react'
+
+<Folder size={16} className="text-[var(--color-text-muted)]" />
+```
+
 ---
 
 ## 3. コードレビュー手順
