@@ -22,10 +22,6 @@ fn read_dir_recursive(dir: &Path) -> Result<Vec<FileNode>, std::io::Error> {
         let entry = entry?;
         let file_name = entry.file_name().to_string_lossy().to_string();
 
-        // 隠しファイルや node_modules, target は除外
-        if file_name.starts_with('.') || file_name == "node_modules" || file_name == "target" {
-            continue;
-        }
 
         let path = entry.path().to_string_lossy().to_string();
         let is_dir = entry.file_type()?.is_dir();

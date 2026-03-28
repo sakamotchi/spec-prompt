@@ -1,5 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen, UnlistenFn } from "@tauri-apps/api/event";
+import { open } from "@tauri-apps/plugin-dialog";
 
 export interface FileNode {
   name: string;
@@ -34,4 +35,9 @@ export const tauriApi = {
     invoke("read_dir", { path }),
 
   readFile: (path: string): Promise<string> => invoke("read_file", { path }),
+
+  openFolderDialog: (): Promise<string | null> =>
+    open({ directory: true, multiple: false }).then((result) =>
+      typeof result === "string" ? result : null
+    ),
 };
