@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useLayoutEffect, useRef } from "react";
 import { Terminal } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
 import "@xterm/xterm/css/xterm.css";
@@ -6,12 +6,12 @@ import { tauriApi } from "../../lib/tauriApi";
 
 interface TerminalPanelProps {
   cwd?: string;
+  isActive?: boolean;
 }
 
-export function TerminalPanel({ cwd = "/" }: TerminalPanelProps) {
+export function TerminalPanel({ cwd = "/", isActive = true }: TerminalPanelProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const termRef = useRef<Terminal | null>(null);
-  const ptyIdRef = useRef<string | null>(null);
   const fitAddonRef = useRef<FitAddon | null>(null);
 
   useEffect(() => {
@@ -20,10 +20,12 @@ export function TerminalPanel({ cwd = "/" }: TerminalPanelProps) {
     const term = new Terminal({
       cursorBlink: true,
       fontSize: 14,
-      fontFamily: "monospace",
+      fontFamily: "'Geist Mono', monospace",
       theme: {
-        background: "#1e1e1e",
-        foreground: "#d4d4d4",
+        background: "#0d0d0d",
+        foreground: "#e8e8e8",
+        cursor: "#7c6af7",
+        selectionBackground: "#7c6af740",
       },
     });
 
@@ -40,12 +42,10 @@ export function TerminalPanel({ cwd = "/" }: TerminalPanelProps) {
 
     const shell = "/bin/zsh";
 
-    // PTY を起動してイベントリスナーを登録
     tauriApi
       .spawnPty(shell, cwd)
       .then(async (id) => {
         ptyId = id;
-        ptyIdRef.current = id;
 
         unlistenFn = await tauriApi.onPtyOutput((output) => {
           if (output.id === id) {
@@ -53,12 +53,10 @@ export function TerminalPanel({ cwd = "/" }: TerminalPanelProps) {
           }
         });
 
-        // キー入力を PTY に送信
         term.onData((data) => {
           tauriApi.writePty(id, data).catch(console.error);
         });
 
-        // リサイズ時に PTY を更新
         term.onResize(({ cols, rows }) => {
           tauriApi.resizePty(id, cols, rows).catch(console.error);
         });
@@ -67,7 +65,6 @@ export function TerminalPanel({ cwd = "/" }: TerminalPanelProps) {
         term.write(`\r\nPTY 起動エラー: ${err}\r\n`);
       });
 
-    // ウィンドウリサイズに追従
     const resizeObserver = new ResizeObserver(() => {
       fitAddon.fit();
     });
@@ -80,6 +77,15 @@ export function TerminalPanel({ cwd = "/" }: TerminalPanelProps) {
       term.dispose();
     };
   }, [cwd]);
+
+  // タブが表示状態に切り替わった時にターミナルサイズを再計算する
+  useLayoutEffect(() => {
+    if (isActive && fitAddonRef.current) {
+      requestAnimationFrame(() => {
+        fitAddonRef.current?.fit();
+      });
+    }
+  }, [isActive]);
 
   return <div ref={containerRef} className="w-full h-full" />;
 }

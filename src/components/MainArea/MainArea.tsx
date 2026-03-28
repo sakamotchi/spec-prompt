@@ -1,4 +1,4 @@
-import { TerminalPanel } from '../TerminalPanel/TerminalPanel'
+import { TerminalTabs } from '../TerminalPanel'
 import { MainTabs } from './MainTabs'
 
 export function MainArea() {
@@ -11,11 +11,7 @@ export function MainArea() {
               コンテンツビューア（Phase 2-A で実装）
             </div>
           ),
-          terminal: (
-            <div className="h-full p-1">
-              <TerminalPanel cwd="/" />
-            </div>
-          ),
+          terminal: <TerminalTabs />,
         }}
       />
     </div>
