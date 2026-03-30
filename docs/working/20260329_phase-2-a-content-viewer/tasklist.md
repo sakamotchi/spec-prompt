@@ -4,9 +4,9 @@
 
 | 状態 | 件数 |
 |------|------|
-| 完了 | 0 |
+| 完了 | 6 |
 | 進行中 | 0 |
-| 未着手 | 5 |
+| 未着手 | 0 |
 
 ## タスク一覧
 
@@ -24,17 +24,11 @@
 
 **WBSリファレンス**: 2-A 前準備
 
-- [ ] `unified`, `remark-parse`, `remark-gfm`, `remark-rehype`, `rehype-stringify` インストール
-- [ ] `@shikijs/rehype`, `shiki` インストール
-- [ ] `mermaid` インストール
-- [ ] `npm run lint` でエラーなし
-
-**コマンド（予定）:**
-```bash
-npm install unified remark-parse remark-gfm remark-rehype rehype-stringify
-npm install @shikijs/rehype shiki
-npm install mermaid
-```
+- [x] `unified`, `remark-parse`, `remark-gfm`, `remark-rehype`, `rehype-stringify` インストール
+- [x] `@shikijs/rehype`, `shiki` インストール
+- [x] `mermaid` インストール
+- [x] `@tauri-apps/plugin-opener` インストール
+- [x] `npm run lint` でエラーなし
 
 ---
 
@@ -42,18 +36,15 @@ npm install mermaid
 
 **WBSリファレンス**: 2-A-7
 
-- [ ] `src/stores/contentStore.ts` を新規作成
-  - `filePath`, `content`, `viewMode`, `isLoading` の状態
-  - `setFile`, `setLoading`, `clear` アクション
-- [ ] `src/lib/viewMode.ts` を新規作成
-  - `getViewMode(filePath): ViewMode` ユーティリティ
-  - `MARKDOWN_EXTS`, `CODE_EXTS` の定数定義
-- [ ] `getViewMode` の単体テスト作成
-- [ ] `npm run lint` でエラーなし
+- [x] `src/stores/contentStore.ts` を新規作成
+- [x] `src/lib/viewMode.ts` を新規作成
+- [x] `getViewMode` の単体テスト作成（12ケース）
+- [x] `npm run lint` でエラーなし
 
 **対象ファイル:**
 - `src/stores/contentStore.ts`（新規）
 - `src/lib/viewMode.ts`（新規）
+- `src/lib/viewMode.test.ts`（新規）
 
 ---
 
@@ -61,22 +52,15 @@ npm install mermaid
 
 **WBSリファレンス**: 2-A-1, 2-A-2, 2-A-3, 2-A-4, 2-A-5, 2-A-6
 
-- [ ] `src/lib/markdown.ts` を新規作成（unified パイプライン）
-- [ ] `ContentView.tsx` を新規作成
-  - `appStore.selectedFile` の変化を監視
-  - `invoke('read_file', { path })` でファイル読み込み
-  - `viewMode` に応じて表示コンポーネントを切り替え
-- [ ] `MarkdownPreview.tsx` を新規作成
-  - unified パイプラインで MD → HTML 変換
-  - `dangerouslySetInnerHTML` で表示
-  - Mermaid コードブロックを動的インポートでレンダリング
-- [ ] `CodeViewer.tsx` を新規作成
-  - Shiki で行番号付きシンタックスハイライト
-  - 読み取り専用表示
-- [ ] `PlainTextViewer.tsx` を新規作成
-  - Geist Mono フォントで等幅表示
-- [ ] `src/components/ContentView/index.ts` を新規作成
-- [ ] `npm run lint` でエラーなし
+- [x] `src/lib/markdown.ts` を新規作成（unified パイプライン）
+- [x] `ContentView.tsx` を新規作成
+- [x] `MarkdownPreview.tsx` を新規作成（Mermaid 動的インポート対応）
+- [x] `CodeViewer.tsx` を新規作成（Shiki シンタックスハイライト）
+- [x] `PlainTextViewer.tsx` を新規作成
+- [x] `src/components/ContentView/index.ts` を新規作成
+- [x] `npm run lint` でエラーなし
+
+> **トラブルシュート**: `@tauri-apps/plugin-opener` の `open` は存在せず `openUrl` が正しい名前。修正済み。
 
 **対象ファイル:**
 - `src/lib/markdown.ts`（新規）
@@ -92,9 +76,9 @@ npm install mermaid
 
 **WBSリファレンス**: 2-A 統合
 
-- [ ] `MainArea.tsx` の `contentNode` プレースホルダーを `<ContentView />` に差し替え
-- [ ] `npm run lint` でエラーなし
-- [ ] `npx tauri dev` で動作確認
+- [x] `MainArea.tsx` の `contentNode` プレースホルダーを `<ContentView />` に差し替え
+- [x] `npm run lint` でエラーなし
+- [x] `npx tauri dev` で動作確認
 
 **対象ファイル:**
 - `src/components/MainArea/MainArea.tsx`（変更）
@@ -103,11 +87,11 @@ npm install mermaid
 
 ### T-6: 結合・手動テスト・マージ
 
-- [ ] `npx tauri dev` でアプリ起動確認
-- [ ] 手動テスト全項目 OK（testing.md 参照）
-- [ ] `npm run test` がパス
-- [ ] `npm run lint` がエラーなし
-- [ ] `feature/2-A-content-viewer` → `develop` へマージ
+- [x] `npx tauri dev` でアプリ起動確認
+- [x] 手動テスト全項目 OK（testing.md 参照）
+- [x] `npm run test` がパス（28テスト）
+- [x] `npm run lint` がエラーなし
+- [x] `feature/2-A-content-viewer` → `develop` へマージ
 
 **ブランチ**: `feature/2-A-content-viewer`
 
@@ -115,11 +99,11 @@ npm install mermaid
 
 ## 完了条件
 
-- [ ] 全タスクが完了
-- [ ] `npm run lint` がエラーなし
-- [ ] `npm run test` がパス
-- [ ] 手動テスト（testing.md）が全件 OK
-- [ ] ファイルツリーで MD ファイルを選択するとプレビューが表示される
-- [ ] ファイルツリーで TS/RS ファイルを選択するとシンタックスハイライトが表示される
-- [ ] Mermaid コードブロックが SVG 図として表示される
-- [ ] `develop` ブランチへのマージ済み
+- [x] 全タスクが完了
+- [x] `npm run lint` がエラーなし
+- [x] `npm run test` がパス
+- [x] 手動テスト（testing.md）が全件 OK
+- [x] ファイルツリーで MD ファイルを選択するとプレビューが表示される
+- [x] ファイルツリーで TS/RS ファイルを選択するとシンタックスハイライトが表示される
+- [x] Mermaid コードブロックが SVG 図として表示される
+- [x] `develop` ブランチへのマージ済み

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, useCallback } from 'react'
 import { FileText, Terminal, Columns2, X } from 'lucide-react'
 import { useAppStore } from '../../stores/appStore'
 import { TerminalTabs } from '../TerminalPanel'
+import { ContentView } from '../ContentView'
 
 function SplitPaneHeader({
   label,
@@ -94,11 +95,7 @@ export function MainArea() {
     document.addEventListener('mouseup', onMouseUp)
   }, [])
 
-  const contentNode = (
-    <div className="flex items-center justify-center h-full text-[var(--color-text-muted)] text-sm">
-      コンテンツビューア（Phase 2-A で実装）
-    </div>
-  )
+  const contentNode = <ContentView />
 
   return (
     <div className="flex flex-col h-full bg-[var(--color-bg-base)]">

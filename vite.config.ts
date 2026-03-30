@@ -6,6 +6,9 @@ const host = process.env.TAURI_DEV_HOST;
 
 export default defineConfig({
   plugins: [react(), tailwindcss()],
+  optimizeDeps: {
+    exclude: ['shiki', '@shikijs/rehype'],
+  },
   test: {
     globals: true,
     environment: 'jsdom',
