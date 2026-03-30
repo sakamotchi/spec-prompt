@@ -6,7 +6,7 @@ export interface FileNode {
   name: string;
   path: string;
   is_dir: boolean;
-  children?: FileNode[];
+  children: FileNode[] | null; // null = 未読み込み（ディレクトリのみ）、[] = 読み込み済み空
 }
 
 export interface PtyOutput {
