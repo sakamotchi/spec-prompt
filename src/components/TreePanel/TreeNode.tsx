@@ -1,4 +1,4 @@
-import { memo } from 'react'
+import { memo, useState } from 'react'
 import {
   ChevronRight,
   ChevronDown,
@@ -6,8 +6,10 @@ import {
   FolderOpen,
   FileText,
   File,
+  Loader2,
 } from 'lucide-react'
 import { useAppStore } from '../../stores/appStore'
+import { tauriApi } from '../../lib/tauriApi'
 import type { FileNode } from '../../lib/tauriApi'
 
 interface TreeNodeProps {
@@ -20,6 +22,8 @@ export const TreeNode = memo(function TreeNode({ node, depth }: TreeNodeProps) {
   const expandedDirs = useAppStore((s) => s.expandedDirs)
   const toggleExpandedDir = useAppStore((s) => s.toggleExpandedDir)
   const setSelectedFile = useAppStore((s) => s.setSelectedFile)
+  const updateDirChildren = useAppStore((s) => s.updateDirChildren)
+  const [isLoadingChildren, setIsLoadingChildren] = useState(false)
 
   const isExpanded = expandedDirs.has(node.path)
   const isSelected = selectedFile === node.path
@@ -27,6 +31,15 @@ export const TreeNode = memo(function TreeNode({ node, depth }: TreeNodeProps) {
 
   const handleClick = () => {
     if (node.is_dir) {
+      // 展開しようとしていて、まだ子が読み込まれていない場合にロード
+      if (!isExpanded && node.children === null) {
+        setIsLoadingChildren(true)
+        tauriApi
+          .readDir(node.path)
+          .then((children) => updateDirChildren(node.path, children))
+          .catch(console.error)
+          .finally(() => setIsLoadingChildren(false))
+      }
       toggleExpandedDir(node.path)
     } else {
       setSelectedFile(node.path)
@@ -35,6 +48,7 @@ export const TreeNode = memo(function TreeNode({ node, depth }: TreeNodeProps) {
 
   const FileIcon = () => {
     if (node.is_dir) {
+      if (isLoadingChildren) return <Loader2 size={14} className="shrink-0 animate-spin text-[var(--color-text-muted)]" />
       return isExpanded
         ? <FolderOpen size={14} className="shrink-0 text-[var(--color-accent)]" />
         : <Folder size={14} className="shrink-0 text-[var(--color-text-muted)]" />

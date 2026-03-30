@@ -12,30 +12,22 @@ pub struct FileNode {
 
 #[tauri::command]
 pub fn read_dir(path: String) -> Result<Vec<FileNode>, String> {
-    let dir = Path::new(&path);
-    read_dir_recursive(dir).map_err(|e| e.to_string())
+    read_dir_single(Path::new(&path)).map_err(|e| e.to_string())
 }
 
-fn read_dir_recursive(dir: &Path) -> Result<Vec<FileNode>, std::io::Error> {
+// 1階層だけ読む。ディレクトリの children は None（フロントエンドが展開時に遅延読み込み）
+fn read_dir_single(dir: &Path) -> Result<Vec<FileNode>, std::io::Error> {
     let mut nodes = Vec::new();
     for entry in fs::read_dir(dir)? {
         let entry = entry?;
         let file_name = entry.file_name().to_string_lossy().to_string();
-
-
         let path = entry.path().to_string_lossy().to_string();
         let is_dir = entry.file_type()?.is_dir();
-        let children = if is_dir {
-            Some(read_dir_recursive(&entry.path()).unwrap_or_default())
-        } else {
-            None
-        };
-
         nodes.push(FileNode {
             name: file_name,
             path,
             is_dir,
-            children,
+            children: None,
         });
     }
     nodes.sort_by(|a, b| {
