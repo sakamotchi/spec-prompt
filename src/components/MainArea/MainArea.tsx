@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, useCallback } from 'react'
 import { FileText, Terminal, Columns2, X } from 'lucide-react'
 import { useAppStore } from '../../stores/appStore'
 import { TerminalTabs } from '../TerminalPanel'
-import { ContentView } from '../ContentView'
+import { ContentArea } from '../ContentView'
 
 function SplitPaneHeader({
   label,
@@ -95,7 +95,7 @@ export function MainArea() {
     document.addEventListener('mouseup', onMouseUp)
   }, [])
 
-  const contentNode = <ContentView />
+  const contentNode = <ContentArea />
 
   return (
     <div className="flex flex-col h-full bg-[var(--color-bg-base)]">

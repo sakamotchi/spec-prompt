@@ -1,85 +1,49 @@
-import { useEffect, useRef } from 'react'
+import { useEffect } from 'react'
 import { invoke } from '@tauri-apps/api/core'
-import { watch } from '@tauri-apps/plugin-fs'
-import { useAppStore } from '../../stores/appStore'
 import { useContentStore } from '../../stores/contentStore'
 import { getViewMode } from '../../lib/viewMode'
 import { MarkdownPreview } from './MarkdownPreview'
 import { CodeViewer } from './CodeViewer'
 import { PlainTextViewer } from './PlainTextViewer'
 
-export function ContentView() {
-  const selectedFile = useAppStore((s) => s.selectedFile)
-  const projectRoot = useAppStore((s) => s.projectRoot)
-  const { filePath, content, viewMode, setFile, setLoading } = useContentStore()
-  const filePathRef = useRef(filePath)
-  const setFileRef = useRef(setFile)
+interface ContentViewProps {
+  tabId: string
+}
 
-  // ref を常に最新に保つ
+export function ContentView({ tabId }: ContentViewProps) {
+  const tab = useContentStore(
+    (s) =>
+      s.primary.tabs.find((t) => t.id === tabId) ??
+      s.secondary.tabs.find((t) => t.id === tabId)
+  )
+  const setTabContent = useContentStore((s) => s.setTabContent)
+  const setTabLoading = useContentStore((s) => s.setTabLoading)
+
+  // ファイル読み込み（content が null のときだけ実行）
   useEffect(() => {
-    filePathRef.current = filePath
-    setFileRef.current = setFile
-  })
-
-  // ファイル選択時の読み込み
-  useEffect(() => {
-    if (!selectedFile) return
-    if (selectedFile === filePath) return
-
-    setLoading(true)
-    invoke<string>('read_file', { path: selectedFile })
-      .then((text) => {
-        setFile(selectedFile, text, getViewMode(selectedFile))
-      })
+    if (!tab?.filePath || tab.content !== null) return
+    invoke<string>('read_file', { path: tab.filePath })
+      .then((text) =>
+        setTabContent(tabId, tab.filePath!, text, getViewMode(tab.filePath!))
+      )
       .catch((err) => {
         console.error('read_file failed:', err)
-        setLoading(false)
+        setTabLoading(tabId, false)
       })
-  }, [selectedFile, filePath, setFile, setLoading])
+  }, [tab?.filePath, tab?.content, tabId, setTabContent, setTabLoading])
 
-  // ファイル変更時の自動再読み込み
-  // filePath を依存配列に含めないことで、ファイル切替のたびに watch を再登録しない
-  useEffect(() => {
-    if (!projectRoot) return
-
-    let unlisten: (() => void) | null = null
-
-    watch(
-      projectRoot,
-      (event) => {
-        const fp = filePathRef.current
-        if (!fp) return
-        const matched = event.paths.some((p) => p === fp || p.endsWith(fp) || fp.endsWith(p))
-        if (matched) {
-          invoke<string>('read_file', { path: fp })
-            .then((text) => setFileRef.current(fp, text, getViewMode(fp)))
-            .catch(console.error)
-        }
-      },
-      { recursive: true, delayMs: 300 },
-    )
-      .then((fn) => {
-        unlisten = fn
-      })
-      .catch(console.error)
-
-    return () => {
-      unlisten?.()
-    }
-  }, [projectRoot])
-
-  if (!selectedFile || content === null) {
+  if (!tab?.filePath || tab.content === null) {
     return (
       <div
         className="flex items-center justify-center h-full text-sm"
         style={{ color: 'var(--color-text-muted)' }}
       >
-        ファイルを選択してください
+        {tab?.isLoading ? '読み込み中...' : 'ファイルを選択してください'}
       </div>
     )
   }
 
-  if (viewMode === 'markdown') return <MarkdownPreview content={content} />
-  if (viewMode === 'code') return <CodeViewer content={content} filePath={filePath!} />
-  return <PlainTextViewer content={content} />
+  if (tab.viewMode === 'markdown') return <MarkdownPreview content={tab.content} />
+  if (tab.viewMode === 'code') return <CodeViewer content={tab.content} filePath={tab.filePath} />
+  return <PlainTextViewer content={tab.content} />
 }

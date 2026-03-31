@@ -9,6 +9,7 @@ import {
   Loader2,
 } from 'lucide-react'
 import { useAppStore } from '../../stores/appStore'
+import { useContentStore } from '../../stores/contentStore'
 import { tauriApi } from '../../lib/tauriApi'
 import type { FileNode } from '../../lib/tauriApi'
 
@@ -23,6 +24,7 @@ export const TreeNode = memo(function TreeNode({ node, depth }: TreeNodeProps) {
   const toggleExpandedDir = useAppStore((s) => s.toggleExpandedDir)
   const setSelectedFile = useAppStore((s) => s.setSelectedFile)
   const updateDirChildren = useAppStore((s) => s.updateDirChildren)
+  const openFile = useContentStore((s) => s.openFile)
   const [isLoadingChildren, setIsLoadingChildren] = useState(false)
 
   const isExpanded = expandedDirs.has(node.path)
@@ -43,6 +45,7 @@ export const TreeNode = memo(function TreeNode({ node, depth }: TreeNodeProps) {
       toggleExpandedDir(node.path)
     } else {
       setSelectedFile(node.path)
+      openFile(node.path)
     }
   }
 
