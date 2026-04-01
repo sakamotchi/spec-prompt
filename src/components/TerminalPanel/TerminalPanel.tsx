@@ -53,7 +53,7 @@ export function TerminalPanel({ tabId, cwd = "/", isActive = true }: TerminalPan
     let unlistenFn: (() => void) | null = null;
     let activePtyId = existingTab?.ptyId ?? null
 
-    const attachToPty = async (ptyId: string) => {
+    const attachToPty = async (ptyId: string): Promise<void> => {
       unlistenFn = await tauriApi.onPtyOutput((output) => {
         if (output.id === ptyId) {
           term.write(output.data);
@@ -71,16 +71,19 @@ export function TerminalPanel({ tabId, cwd = "/", isActive = true }: TerminalPan
     }
 
     if (activePtyId) {
-      // タブ移動後：既存 PTY に接続
-      attachToPty(activePtyId)
+      // タブ移動後：既存 PTY に接続し、現在のサイズを同期
+      attachToPty(activePtyId).then(() => {
+        tauriApi.resizePty(activePtyId!, term.cols, term.rows).catch(console.error)
+      })
     } else {
-      // 新規タブ：PTY を起動
+      // 新規タブ：PTY を起動し、現在のサイズを同期
       tauriApi
         .spawnPty("/bin/zsh", cwd)
         .then(async (id) => {
           activePtyId = id;
           useTerminalStore.getState().setPtyId(tabId, id)
           await attachToPty(id)
+          tauriApi.resizePty(id, term.cols, term.rows).catch(console.error)
         })
         .catch((err) => {
           term.write(`\r\nPTY 起動エラー: ${err}\r\n`);

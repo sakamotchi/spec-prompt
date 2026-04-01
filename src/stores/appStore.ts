@@ -12,6 +12,7 @@ function setNodeChildren(nodes: FileNode[], targetPath: string, children: FileNo
 
 type MainTab = 'content' | 'terminal'
 type MainLayout = 'tab' | 'split'
+export type PathFormat = 'relative' | 'absolute'
 
 interface AppState {
   // Phase 1-A
@@ -30,6 +31,13 @@ interface AppState {
   setSelectedFile: (path: string | null) => void
   toggleExpandedDir: (path: string) => void
   updateDirChildren: (path: string, children: FileNode[]) => void
+
+  // Phase 2-D
+  pathFormat: PathFormat
+  selectedFiles: string[]
+  setPathFormat: (format: PathFormat) => void
+  toggleFileSelection: (path: string) => void
+  clearFileSelection: () => void
 }
 
 export const useAppStore = create<AppState>()(
@@ -63,6 +71,17 @@ export const useAppStore = create<AppState>()(
           if (path === state.projectRoot) return { fileTree: children }
           return { fileTree: setNodeChildren(state.fileTree, path, children) }
         }),
+
+      pathFormat: 'relative',
+      selectedFiles: [],
+      setPathFormat: (format) => set({ pathFormat: format }),
+      toggleFileSelection: (path) =>
+        set((state) => ({
+          selectedFiles: state.selectedFiles.includes(path)
+            ? state.selectedFiles.filter((p) => p !== path)
+            : [...state.selectedFiles, path],
+        })),
+      clearFileSelection: () => set({ selectedFiles: [] }),
     }),
     {
       name: 'spec-prompt-app-store',
@@ -72,6 +91,7 @@ export const useAppStore = create<AppState>()(
         projectRoot: state.projectRoot,
         selectedFile: state.selectedFile,
         expandedDirs: state.expandedDirs,
+        pathFormat: state.pathFormat,
       }),
       storage: createJSONStorage(() => localStorage, {
         replacer: (_key, value) =>

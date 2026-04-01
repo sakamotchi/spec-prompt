@@ -1,0 +1,1 @@
+export { PathPalette } from './PathPalette'
