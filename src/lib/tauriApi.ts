@@ -51,4 +51,11 @@ export const tauriApi = {
     open({ directory: true, multiple: false }).then((result) =>
       typeof result === "string" ? result : null
     ),
+
+  // Config
+  getRecentProjects: (): Promise<string[]> =>
+    invoke("get_recent_projects"),
+
+  addRecentProject: (path: string): Promise<void> =>
+    invoke("add_recent_project", { path }),
 };

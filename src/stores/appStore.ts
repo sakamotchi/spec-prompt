@@ -55,6 +55,11 @@ interface AppState {
   creatingState: CreatingState | null
   setEditingState: (state: EditingState | null) => void
   setCreatingState: (state: CreatingState | null) => void
+
+  // Phase 2-F
+  recentProjects: string[]
+  setRecentProjects: (projects: string[]) => void
+  switchProject: (root: string) => void
 }
 
 export const useAppStore = create<AppState>()(
@@ -104,6 +109,19 @@ export const useAppStore = create<AppState>()(
       creatingState: null,
       setEditingState: (state) => set({ editingState: state }),
       setCreatingState: (state) => set({ creatingState: state }),
+
+      recentProjects: [],
+      setRecentProjects: (projects) => set({ recentProjects: projects }),
+      switchProject: (root) =>
+        set({
+          projectRoot: root,
+          fileTree: [],
+          expandedDirs: new Set<string>(),
+          selectedFile: null,
+          selectedFiles: [],
+          editingState: null,
+          creatingState: null,
+        }),
     }),
     {
       name: 'spec-prompt-app-store',

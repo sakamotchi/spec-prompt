@@ -1,23 +1,38 @@
+import { useEffect } from 'react'
 import { FolderOpen, Loader2, AlertCircle } from 'lucide-react'
 import { useAppStore } from '../../stores/appStore'
+import { useContentStore } from '../../stores/contentStore'
 import { tauriApi } from '../../lib/tauriApi'
 import { useFileTree } from '../../hooks/useFileTree'
 import { TreeNode } from './TreeNode'
 import { InlineInput } from './InlineInput'
+import { RecentProjectsMenu } from './RecentProjectsMenu'
 
 export function TreePanel() {
   const projectRoot = useAppStore((s) => s.projectRoot)
-  const setProjectRoot = useAppStore((s) => s.setProjectRoot)
   const fileTree = useAppStore((s) => s.fileTree)
+  const recentProjects = useAppStore((s) => s.recentProjects)
+  const setRecentProjects = useAppStore((s) => s.setRecentProjects)
+  const switchProject = useAppStore((s) => s.switchProject)
+  const setProjectRoot = useAppStore((s) => s.setProjectRoot)
+  const updateDirChildren = useAppStore((s) => s.updateDirChildren)
   const { loading, error } = useFileTree()
 
   const creatingState = useAppStore((s) => s.creatingState)
   const setCreatingState = useAppStore((s) => s.setCreatingState)
-  const updateDirChildren = useAppStore((s) => s.updateDirChildren)
+
+  const resetAllTabs = useContentStore((s) => s.resetAllTabs)
 
   const projectName = projectRoot
     ? projectRoot.split('/').pop() ?? projectRoot
     : null
+
+  // 起動時に最近開いたプロジェクト履歴を取得
+  useEffect(() => {
+    tauriApi.getRecentProjects()
+      .then(setRecentProjects)
+      .catch(console.error)
+  }, [setRecentProjects])
 
   // ルート直下への新規作成
   const showRootCreatingInput =
@@ -43,16 +58,34 @@ export function TreePanel() {
 
   const handleOpen = async () => {
     const selected = await tauriApi.openFolderDialog()
-    if (selected) setProjectRoot(selected)
+    if (selected) {
+      setProjectRoot(selected)
+      tauriApi.addRecentProject(selected)
+        .then(() => tauriApi.getRecentProjects())
+        .then(setRecentProjects)
+        .catch(console.error)
+    }
+  }
+
+  const handleSelectRecent = async (path: string) => {
+    switchProject(path)
+    resetAllTabs()
+    tauriApi.addRecentProject(path)
+      .then(() => tauriApi.getRecentProjects())
+      .then(setRecentProjects)
+      .catch(console.error)
   }
 
   return (
     <div className="flex flex-col h-full bg-[var(--color-bg-panel)] border-r border-[var(--color-border)]">
       {/* ヘッダー */}
       <div className="flex items-center justify-between h-9 px-3 shrink-0 border-b border-[var(--color-border)]">
-        <span className="text-xs text-[var(--color-text-muted)] truncate">
-          {projectName ?? 'プロジェクト'}
-        </span>
+        <RecentProjectsMenu
+          projectName={projectName}
+          recentProjects={recentProjects}
+          currentProject={projectRoot}
+          onSelect={handleSelectRecent}
+        />
         <button
           onClick={handleOpen}
           title="プロジェクトを開く"

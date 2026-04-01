@@ -30,6 +30,7 @@ interface ContentState {
   moveTab: (tabId: string, fromPane: 'primary' | 'secondary', toPane: 'primary' | 'secondary') => void
   closeTabByPath: (filePath: string) => void
   renameTabPath: (oldPath: string, newPath: string) => void
+  resetAllTabs: () => void
 }
 
 const makeTab = (overrides?: Partial<ContentTab>): ContentTab => ({
@@ -191,4 +192,12 @@ export const useContentStore = create<ContentState>((set) => ({
         tabs: g.tabs.map((t) => (t.filePath === oldPath ? { ...t, filePath: newPath } : t)),
       })),
     })),
+
+  resetAllTabs: () =>
+    set({
+      primary: makeGroup(),
+      secondary: makeGroup(),
+      splitEnabled: false,
+      focusedPane: 'primary',
+    }),
 }))
