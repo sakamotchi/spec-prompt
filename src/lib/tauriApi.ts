@@ -36,6 +36,17 @@ export const tauriApi = {
 
   readFile: (path: string): Promise<string> => invoke("read_file", { path }),
 
+  createFile: (path: string): Promise<void> => invoke("create_file", { path }),
+
+  createDir: (path: string): Promise<void> => invoke("create_dir", { path }),
+
+  renamePath: (oldPath: string, newPath: string): Promise<void> =>
+    invoke("rename_path", { oldPath, newPath }),
+
+  deletePath: (path: string): Promise<void> => invoke("delete_path", { path }),
+
+  openInEditor: (path: string): Promise<void> => invoke("open_in_editor", { path }),
+
   openFolderDialog: (): Promise<string | null> =>
     open({ directory: true, multiple: false }).then((result) =>
       typeof result === "string" ? result : null

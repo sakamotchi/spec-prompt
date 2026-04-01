@@ -14,6 +14,17 @@ type MainTab = 'content' | 'terminal'
 type MainLayout = 'tab' | 'split'
 export type PathFormat = 'relative' | 'absolute'
 
+export interface EditingState {
+  type: 'rename'
+  path: string
+}
+
+export interface CreatingState {
+  type: 'create'
+  parentPath: string
+  nodeType: 'file' | 'dir'
+}
+
 interface AppState {
   // Phase 1-A
   activeMainTab: MainTab
@@ -38,6 +49,12 @@ interface AppState {
   setPathFormat: (format: PathFormat) => void
   toggleFileSelection: (path: string) => void
   clearFileSelection: () => void
+
+  // Phase 2-E
+  editingState: EditingState | null
+  creatingState: CreatingState | null
+  setEditingState: (state: EditingState | null) => void
+  setCreatingState: (state: CreatingState | null) => void
 }
 
 export const useAppStore = create<AppState>()(
@@ -82,6 +99,11 @@ export const useAppStore = create<AppState>()(
             : [...state.selectedFiles, path],
         })),
       clearFileSelection: () => set({ selectedFiles: [] }),
+
+      editingState: null,
+      creatingState: null,
+      setEditingState: (state) => set({ editingState: state }),
+      setCreatingState: (state) => set({ creatingState: state }),
     }),
     {
       name: 'spec-prompt-app-store',

@@ -3,6 +3,7 @@ import { useAppStore } from '../../stores/appStore'
 import { tauriApi } from '../../lib/tauriApi'
 import { useFileTree } from '../../hooks/useFileTree'
 import { TreeNode } from './TreeNode'
+import { InlineInput } from './InlineInput'
 
 export function TreePanel() {
   const projectRoot = useAppStore((s) => s.projectRoot)
@@ -10,9 +11,35 @@ export function TreePanel() {
   const fileTree = useAppStore((s) => s.fileTree)
   const { loading, error } = useFileTree()
 
+  const creatingState = useAppStore((s) => s.creatingState)
+  const setCreatingState = useAppStore((s) => s.setCreatingState)
+  const updateDirChildren = useAppStore((s) => s.updateDirChildren)
+
   const projectName = projectRoot
     ? projectRoot.split('/').pop() ?? projectRoot
     : null
+
+  // ルート直下への新規作成
+  const showRootCreatingInput =
+    projectRoot !== null && creatingState?.parentPath === projectRoot
+
+  const handleRootCreateCommit = async (name: string): Promise<string | null> => {
+    if (!creatingState || !projectRoot) return null
+    const newPath = `${projectRoot}/${name}`
+    try {
+      if (creatingState.nodeType === 'file') {
+        await tauriApi.createFile(newPath)
+      } else {
+        await tauriApi.createDir(newPath)
+      }
+      setCreatingState(null)
+      const children = await tauriApi.readDir(projectRoot)
+      updateDirChildren(projectRoot, children)
+      return null
+    } catch (e) {
+      return e instanceof Error ? e.message : String(e)
+    }
+  }
 
   const handleOpen = async () => {
     const selected = await tauriApi.openFolderDialog()
@@ -61,6 +88,16 @@ export function TreePanel() {
         {!loading && !error && fileTree.map((node) => (
           <TreeNode key={node.path} node={node} depth={0} />
         ))}
+
+        {/* ルート直下への新規作成インライン入力 */}
+        {showRootCreatingInput && (
+          <InlineInput
+            placeholder={creatingState!.nodeType === 'file' ? 'ファイル名...' : 'フォルダ名...'}
+            depth={0}
+            onCommit={handleRootCreateCommit}
+            onCancel={() => setCreatingState(null)}
+          />
+        )}
       </div>
     </div>
   )

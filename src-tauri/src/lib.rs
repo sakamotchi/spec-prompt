@@ -1,6 +1,8 @@
 mod commands;
 
-use commands::filesystem::{read_dir, read_file};
+use commands::filesystem::{
+    create_dir, create_file, delete_path, open_in_editor, read_dir, read_file, rename_path,
+};
 use commands::pty::{close_pty, resize_pty, spawn_pty, write_pty, PtyManager};
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -17,6 +19,11 @@ pub fn run() {
             close_pty,
             read_dir,
             read_file,
+            create_file,
+            create_dir,
+            rename_path,
+            delete_path,
+            open_in_editor,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -28,6 +28,8 @@ interface ContentState {
   setTabLoading: (tabId: string, loading: boolean) => void
   toggleSplit: () => void
   moveTab: (tabId: string, fromPane: 'primary' | 'secondary', toPane: 'primary' | 'secondary') => void
+  closeTabByPath: (filePath: string) => void
+  renameTabPath: (oldPath: string, newPath: string) => void
 }
 
 const makeTab = (overrides?: Partial<ContentTab>): ContentTab => ({
@@ -160,4 +162,33 @@ export const useContentStore = create<ContentState>((set) => ({
 
       return { [fromPane]: newFromGroup, [toPane]: newToGroup }
     }),
+
+  closeTabByPath: (filePath) =>
+    set((state) => {
+      const closeInGroup = (group: ContentGroup, pane: 'primary' | 'secondary') => {
+        const tab = group.tabs.find((t) => t.filePath === filePath)
+        if (!tab) return { [pane]: group }
+        if (group.tabs.length <= 1) {
+          const empty = makeTab()
+          return { [pane]: { tabs: [empty], activeTabId: empty.id } }
+        }
+        const newTabs = group.tabs.filter((t) => t.filePath !== filePath)
+        const fallback = newTabs[newTabs.length - 1].id
+        return {
+          [pane]: {
+            tabs: newTabs,
+            activeTabId: group.activeTabId === tab.id ? fallback : group.activeTabId,
+          },
+        }
+      }
+      return { ...closeInGroup(state.primary, 'primary'), ...closeInGroup(state.secondary, 'secondary') }
+    }),
+
+  renameTabPath: (oldPath, newPath) =>
+    set((state) => ({
+      ...updateBothGroups(state, (g) => ({
+        ...g,
+        tabs: g.tabs.map((t) => (t.filePath === oldPath ? { ...t, filePath: newPath } : t)),
+      })),
+    })),
 }))
