@@ -78,6 +78,11 @@ pub fn delete_path(path: String) -> Result<(), String> {
 }
 
 #[tauri::command]
+pub fn write_file(path: String, content: String) -> Result<(), String> {
+    fs::write(&path, content.as_bytes()).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
 pub fn open_in_editor(app: tauri::AppHandle, path: String) -> Result<(), String> {
     app.opener()
         .open_path(path, None::<&str>)
@@ -149,6 +154,23 @@ mod tests {
         fs::File::create(&path).unwrap();
         assert!(delete_path(path.clone()).is_ok());
         assert!(!Path::new(&path).exists());
+    }
+
+    #[test]
+    fn test_write_file() {
+        let dir = tempdir().unwrap();
+        let path = dir.path().join("out.md").to_string_lossy().to_string();
+        assert!(write_file(path.clone(), "# hello".to_string()).is_ok());
+        assert_eq!(fs::read_to_string(&path).unwrap(), "# hello");
+    }
+
+    #[test]
+    fn test_write_file_overwrites() {
+        let dir = tempdir().unwrap();
+        let path = dir.path().join("out.md").to_string_lossy().to_string();
+        fs::write(&path, "old content").unwrap();
+        assert!(write_file(path.clone(), "new content".to_string()).is_ok());
+        assert_eq!(fs::read_to_string(&path).unwrap(), "new content");
     }
 
     #[test]

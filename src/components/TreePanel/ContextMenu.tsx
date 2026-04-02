@@ -1,7 +1,15 @@
 import * as RadixContextMenu from '@radix-ui/react-context-menu'
-import { FilePlus, FolderPlus, ExternalLink, Pencil, Trash2 } from 'lucide-react'
+import { FilePlus, FolderPlus, ExternalLink, Pencil, Trash2, Check, ChevronRight } from 'lucide-react'
 import { useAppStore } from '../../stores/appStore'
 import { usePathInsertion } from '../../hooks/usePathInsertion'
+import { tauriApi } from '../../lib/tauriApi'
+import {
+  DOC_STATUS_LABEL,
+  DOC_STATUS_COLOR,
+  parseStatus,
+  setStatus,
+  type DocStatus,
+} from '../../lib/frontmatter'
 
 interface TreeContextMenuProps {
   path: string
@@ -57,6 +65,80 @@ function Separator() {
   )
 }
 
+const DOC_STATUSES: DocStatus[] = ['draft', 'reviewing', 'approved']
+
+function StatusSubMenu({ path }: { path: string }) {
+  const docStatuses = useAppStore((s) => s.docStatuses)
+  const setDocStatus = useAppStore((s) => s.setDocStatus)
+  const current: DocStatus | null | undefined = docStatuses[path]
+
+  const handleSelect = async (status: DocStatus) => {
+    try {
+      const content = await tauriApi.readFile(path)
+      const updated = setStatus(content, status)
+      await tauriApi.writeFile(path, updated)
+      setDocStatus(path, parseStatus(updated))
+    } catch (e) {
+      console.error(e)
+    }
+  }
+
+  return (
+    <RadixContextMenu.Sub>
+      <RadixContextMenu.SubTrigger
+        className={`${menuItemClass} justify-between`}
+        style={{ color: 'var(--color-text-primary)' }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.background = 'var(--color-accent)'
+          e.currentTarget.style.color = '#fff'
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.background = 'transparent'
+          e.currentTarget.style.color = 'var(--color-text-primary)'
+        }}
+      >
+        <span>ステータス</span>
+        <ChevronRight size={12} />
+      </RadixContextMenu.SubTrigger>
+
+      <RadixContextMenu.Portal>
+        <RadixContextMenu.SubContent
+          className="min-w-[140px] rounded py-1 shadow-lg z-50"
+          style={{
+            background: 'var(--color-bg-elevated)',
+            border: '1px solid var(--color-border)',
+          }}
+          sideOffset={2}
+        >
+          {DOC_STATUSES.map((status) => (
+            <RadixContextMenu.Item
+              key={status}
+              className={menuItemClass}
+              style={{ color: 'var(--color-text-primary)' }}
+              onSelect={() => handleSelect(status)}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = 'var(--color-accent)'
+                e.currentTarget.style.color = '#fff'
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = 'transparent'
+                e.currentTarget.style.color = 'var(--color-text-primary)'
+              }}
+            >
+              <span
+                className="w-2 h-2 rounded-full shrink-0"
+                style={{ background: DOC_STATUS_COLOR[status] }}
+              />
+              <span className="flex-1">{DOC_STATUS_LABEL[status]}</span>
+              {current === status && <Check size={12} />}
+            </RadixContextMenu.Item>
+          ))}
+        </RadixContextMenu.SubContent>
+      </RadixContextMenu.Portal>
+    </RadixContextMenu.Sub>
+  )
+}
+
 export function TreeContextMenu({
   path,
   isDir,
@@ -69,6 +151,8 @@ export function TreeContextMenu({
 }: TreeContextMenuProps) {
   const selectedFiles = useAppStore((s) => s.selectedFiles)
   const { insertPath } = usePathInsertion()
+
+  const isMd = !isDir && /\.(md|mdx)$/i.test(path)
 
   const handleInsertPath = () => {
     if (selectedFiles.length > 1 && selectedFiles.includes(path)) {
@@ -128,6 +212,13 @@ export function TreeContextMenu({
             icon={<ExternalLink size={12} />}
             label={isDir ? 'Finderで開く' : '外部エディタで開く'}
           />
+
+          {isMd && (
+            <>
+              <Separator />
+              <StatusSubMenu path={path} />
+            </>
+          )}
 
           <Separator />
 

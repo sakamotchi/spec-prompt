@@ -3,6 +3,7 @@ mod commands;
 use commands::config::{add_recent_project, get_recent_projects};
 use commands::filesystem::{
     create_dir, create_file, delete_path, open_in_editor, read_dir, read_file, rename_path,
+    write_file,
 };
 use commands::pty::{close_pty, resize_pty, spawn_pty, write_pty, PtyManager};
 
@@ -25,6 +26,7 @@ pub fn run() {
             rename_path,
             delete_path,
             open_in_editor,
+            write_file,
             get_recent_projects,
             add_recent_project,
         ])
