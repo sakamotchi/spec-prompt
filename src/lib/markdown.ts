@@ -1,5 +1,6 @@
 import { unified } from 'unified'
 import remarkParse from 'remark-parse'
+import remarkFrontmatter from 'remark-frontmatter'
 import remarkGfm from 'remark-gfm'
 import remarkRehype from 'remark-rehype'
 import rehypeShiki from '@shikijs/rehype'
@@ -13,6 +14,7 @@ async function getProcessor() {
     processorPromise = (async () => {
       return unified()
         .use(remarkParse)
+        .use(remarkFrontmatter)
         .use(remarkGfm)
         .use(remarkRehype, { allowDangerousHtml: true })
         .use(rehypeShiki, {

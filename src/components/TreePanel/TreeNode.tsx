@@ -16,6 +16,7 @@ import type { FileNode } from '../../lib/tauriApi'
 import { TreeContextMenu } from './ContextMenu'
 import { InlineInput } from './InlineInput'
 import { DeleteDialog } from './DeleteDialog'
+import { DOC_STATUS_COLOR, type DocStatus } from '../../lib/frontmatter'
 
 interface TreeNodeProps {
   node: FileNode
@@ -42,6 +43,8 @@ export const TreeNode = memo(function TreeNode({ node, depth }: TreeNodeProps) {
   const openFile = useContentStore((s) => s.openFile)
   const closeTabByPath = useContentStore((s) => s.closeTabByPath)
   const renameTabPath = useContentStore((s) => s.renameTabPath)
+  const docStatuses = useAppStore((s) => s.docStatuses)
+  const loadDocStatuses = useAppStore((s) => s.loadDocStatuses)
   const { insertPath } = usePathInsertion()
 
   const [isLoadingChildren, setIsLoadingChildren] = useState(false)
@@ -58,11 +61,12 @@ export const TreeNode = memo(function TreeNode({ node, depth }: TreeNodeProps) {
       try {
         const children = await tauriApi.readDir(dirPath)
         updateDirChildren(dirPath, children)
+        loadDocStatuses(children.filter((c) => !c.is_dir).map((c) => c.path))
       } catch (e) {
         console.error(e)
       }
     },
-    [updateDirChildren],
+    [updateDirChildren, loadDocStatuses],
   )
 
   const handleClick = (e: React.MouseEvent) => {
@@ -92,7 +96,10 @@ export const TreeNode = memo(function TreeNode({ node, depth }: TreeNodeProps) {
         setIsLoadingChildren(true)
         tauriApi
           .readDir(node.path)
-          .then((children) => updateDirChildren(node.path, children))
+          .then((children) => {
+            updateDirChildren(node.path, children)
+            loadDocStatuses(children.filter((c) => !c.is_dir).map((c) => c.path))
+          })
           .catch(console.error)
           .finally(() => setIsLoadingChildren(false))
       }
@@ -100,6 +107,9 @@ export const TreeNode = memo(function TreeNode({ node, depth }: TreeNodeProps) {
     } else {
       setSelectedFile(node.path)
       openFile(node.path)
+      if (/\.(md|mdx)$/i.test(node.path)) {
+        loadDocStatuses([node.path])
+      }
     }
   }
 
@@ -251,7 +261,19 @@ export const TreeNode = memo(function TreeNode({ node, depth }: TreeNodeProps) {
                 onCancel={() => setEditingState(null)}
               />
             ) : (
-              <span className="truncate">{node.name}</span>
+              <>
+                <span className="truncate flex-1">{node.name}</span>
+                {!node.is_dir && /\.(md|mdx)$/i.test(node.name) && (() => {
+                  const status: DocStatus | null | undefined = docStatuses[node.path]
+                  return status ? (
+                    <span
+                      className="shrink-0 w-1.5 h-1.5 rounded-full ml-1"
+                      style={{ background: DOC_STATUS_COLOR[status] }}
+                      title={status}
+                    />
+                  ) : null
+                })()}
+              </>
             )}
           </div>
         </TreeContextMenu>

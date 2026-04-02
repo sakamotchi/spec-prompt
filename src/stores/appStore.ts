@@ -1,6 +1,8 @@
 import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
 import type { FileNode } from '../lib/tauriApi'
+import { tauriApi } from '../lib/tauriApi'
+import { parseStatus, type DocStatus } from '../lib/frontmatter'
 
 function setNodeChildren(nodes: FileNode[], targetPath: string, children: FileNode[]): FileNode[] {
   return nodes.map((node) => {
@@ -60,6 +62,11 @@ interface AppState {
   recentProjects: string[]
   setRecentProjects: (projects: string[]) => void
   switchProject: (root: string) => void
+
+  // Phase 3-A
+  docStatuses: Record<string, DocStatus | null>
+  setDocStatus: (path: string, status: DocStatus | null) => void
+  loadDocStatuses: (paths: string[]) => Promise<void>
 }
 
 export const useAppStore = create<AppState>()(
@@ -121,7 +128,26 @@ export const useAppStore = create<AppState>()(
           selectedFiles: [],
           editingState: null,
           creatingState: null,
+          docStatuses: {},
         }),
+
+      docStatuses: {},
+      setDocStatus: (path, status) =>
+        set((state) => ({ docStatuses: { ...state.docStatuses, [path]: status } })),
+      loadDocStatuses: async (paths) => {
+        const mdPaths = paths.filter((p) => /\.(md|mdx)$/i.test(p))
+        await Promise.all(
+          mdPaths.map(async (path) => {
+            try {
+              const content = await tauriApi.readFile(path)
+              const status = parseStatus(content)
+              set((s) => ({ docStatuses: { ...s.docStatuses, [path]: status } }))
+            } catch {
+              // 読み込み失敗は無視
+            }
+          })
+        )
+      },
     }),
     {
       name: 'spec-prompt-app-store',

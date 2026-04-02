@@ -36,6 +36,9 @@ export const tauriApi = {
 
   readFile: (path: string): Promise<string> => invoke("read_file", { path }),
 
+  writeFile: (path: string, content: string): Promise<void> =>
+    invoke("write_file", { path, content }),
+
   createFile: (path: string): Promise<void> => invoke("create_file", { path }),
 
   createDir: (path: string): Promise<void> => invoke("create_dir", { path }),
