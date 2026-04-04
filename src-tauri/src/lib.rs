@@ -1,6 +1,7 @@
 mod commands;
 
-use commands::config::{add_recent_project, get_recent_projects};
+use commands::config::{add_recent_project, get_appearance, get_recent_projects, save_appearance};
+use commands::fonts::load_font_bytes;
 use commands::filesystem::{
     create_dir, create_file, delete_path, open_in_editor, read_dir, read_file, rename_path,
     write_file,
@@ -29,6 +30,9 @@ pub fn run() {
             write_file,
             get_recent_projects,
             add_recent_project,
+            get_appearance,
+            save_appearance,
+            load_font_bytes,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

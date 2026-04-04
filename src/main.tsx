@@ -1,7 +1,8 @@
-import { StrictMode, Component, type ErrorInfo, type ReactNode } from "react";
+import { Component, type ErrorInfo, type ReactNode } from "react";
 import { createRoot } from "react-dom/client";
 import "./index.css";
 import App from "./App";
+import { useSettingsStore } from "./stores/settingsStore";
 
 class ErrorBoundary extends Component<{ children: ReactNode }, { error: Error | null }> {
   state = { error: null }
@@ -19,10 +20,10 @@ class ErrorBoundary extends Component<{ children: ReactNode }, { error: Error | 
   }
 }
 
+useSettingsStore.getState().loadSettings().catch(console.error)
+
 createRoot(document.getElementById("root")!).render(
-  <StrictMode>
-    <ErrorBoundary>
-      <App />
-    </ErrorBoundary>
-  </StrictMode>
+  <ErrorBoundary>
+    <App />
+  </ErrorBoundary>
 );

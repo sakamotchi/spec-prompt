@@ -11,8 +11,27 @@
   --color-accent:       #7c6af7;
 }
 
+[data-theme="light"] {
+  --color-bg-base:      #ffffff;
+  --color-bg-panel:     #f5f5f5;
+  --color-bg-elevated:  #ebebeb;
+  --color-border:       #d4d4d4;
+  --color-text-primary: #1a1a1a;
+  --color-text-muted:   #666666;
+  --color-accent:       #7c6af7;
+}
+
 * {
   box-sizing: border-box;
+}
+
+/* xterm.js DOM レンダラーのカーニング・字間を明示的に無効化 */
+.xterm-rows span {
+  font-kerning: none;
+  letter-spacing: 0;
+}
+
+body {
   font-family: 'Geist', sans-serif;
 }
 
@@ -118,8 +137,8 @@ body,
 .shiki {
   min-height: 100%;
   padding: 1em;
-  font-family: 'Geist Mono', monospace;
-  font-size: 0.875rem;
+  font-family: var(--content-font-family, 'Geist', sans-serif);
+  font-size: var(--content-font-size, 16px);
   line-height: 1.6;
 }
 

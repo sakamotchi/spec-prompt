@@ -1,5 +1,5 @@
-import { useEffect } from 'react'
-import { FolderOpen, Loader2, AlertCircle } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { FolderOpen, Loader2, AlertCircle, Settings } from 'lucide-react'
 import { useAppStore } from '../../stores/appStore'
 import { useContentStore } from '../../stores/contentStore'
 import { tauriApi } from '../../lib/tauriApi'
@@ -7,6 +7,7 @@ import { useFileTree } from '../../hooks/useFileTree'
 import { TreeNode } from './TreeNode'
 import { InlineInput } from './InlineInput'
 import { RecentProjectsMenu } from './RecentProjectsMenu'
+import { SettingsModal } from '../Settings/SettingsModal'
 
 export function TreePanel() {
   const projectRoot = useAppStore((s) => s.projectRoot)
@@ -22,6 +23,7 @@ export function TreePanel() {
   const setCreatingState = useAppStore((s) => s.setCreatingState)
 
   const resetAllTabs = useContentStore((s) => s.resetAllTabs)
+  const [settingsOpen, setSettingsOpen] = useState(false)
 
   const projectName = projectRoot
     ? projectRoot.split('/').pop() ?? projectRoot
@@ -86,14 +88,24 @@ export function TreePanel() {
           currentProject={projectRoot}
           onSelect={handleSelectRecent}
         />
-        <button
-          onClick={handleOpen}
-          title="プロジェクトを開く"
-          className="p-1 rounded hover:bg-[var(--color-bg-elevated)] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] transition-colors"
-        >
-          <FolderOpen size={14} />
-        </button>
+        <div className="flex items-center gap-1">
+          <button
+            onClick={handleOpen}
+            title="プロジェクトを開く"
+            className="p-1 rounded hover:bg-[var(--color-bg-elevated)] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] transition-colors"
+          >
+            <FolderOpen size={14} />
+          </button>
+          <button
+            onClick={() => setSettingsOpen(true)}
+            title="設定"
+            className="p-1 rounded hover:bg-[var(--color-bg-elevated)] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] transition-colors"
+          >
+            <Settings size={14} />
+          </button>
+        </div>
       </div>
+      <SettingsModal open={settingsOpen} onOpenChange={setSettingsOpen} />
 
       {/* ツリーエリア */}
       <div className="flex-1 overflow-y-auto min-h-0">

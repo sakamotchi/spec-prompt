@@ -8,9 +8,15 @@ import rehypeStringify from 'rehype-stringify'
 
 // シングルトンでプロセッサーを構築（初回呼び出し時に非同期初期化）
 let processorPromise: Promise<ReturnType<typeof unified>> | null = null
+let builtTheme = ''
 
-async function getProcessor() {
-  if (!processorPromise) {
+export function invalidateMarkdownProcessor() {
+  processorPromise = null
+}
+
+async function getProcessor(shikiTheme: string) {
+  if (!processorPromise || builtTheme !== shikiTheme) {
+    builtTheme = shikiTheme
     processorPromise = (async () => {
       return unified()
         .use(remarkParse)
@@ -18,7 +24,7 @@ async function getProcessor() {
         .use(remarkGfm)
         .use(remarkRehype, { allowDangerousHtml: true })
         .use(rehypeShiki, {
-          theme: 'github-dark',
+          theme: shikiTheme,
           // Mermaid は Shiki でハイライトせず、そのままの language-mermaid クラスを維持する
           langs: [],
         })
@@ -28,8 +34,8 @@ async function getProcessor() {
   return processorPromise
 }
 
-export async function renderMarkdown(content: string): Promise<string> {
-  const processor = await getProcessor()
+export async function renderMarkdown(content: string, shikiTheme = 'github-dark'): Promise<string> {
+  const processor = await getProcessor(shikiTheme)
   const result = await processor.process(content)
   return String(result)
 }

@@ -61,4 +61,21 @@ export const tauriApi = {
 
   addRecentProject: (path: string): Promise<void> =>
     invoke("add_recent_project", { path }),
+
+  getAppearance: (): Promise<AppearanceSettings> =>
+    invoke("get_appearance"),
+
+  saveAppearance: (settings: AppearanceSettings): Promise<void> =>
+    invoke("save_appearance", { settings }),
+
+  loadFontBytes: (family: string): Promise<number[]> =>
+    invoke("load_font_bytes", { family }),
 };
+
+export interface AppearanceSettings {
+  theme: string;
+  content_font_family: string;
+  content_font_size: number;
+  terminal_font_family: string;
+  terminal_font_size: number;
+}

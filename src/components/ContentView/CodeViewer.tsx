@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react'
 import { createHighlighter } from 'shiki'
+import { useSettingsStore } from '../../stores/settingsStore'
+import { toFontFamilyCSS } from '../../lib/fontFamily'
 
 // 対応言語マップ（拡張子 → Shiki 言語 ID）
 const EXT_TO_LANG: Record<string, string> = {
@@ -27,6 +29,8 @@ function getHighlighter() {
 
 export function CodeViewer({ content, filePath }: { content: string; filePath: string }) {
   const [html, setHtml] = useState('')
+  const contentFontFamily = useSettingsStore((s) => s.contentFontFamily)
+  const contentFontSize = useSettingsStore((s) => s.contentFontSize)
 
   useEffect(() => {
     const ext = filePath.split('.').pop()?.toLowerCase() ?? ''
@@ -46,7 +50,11 @@ export function CodeViewer({ content, filePath }: { content: string; filePath: s
   return (
     <div
       className="h-full overflow-auto text-sm"
-      style={{ background: 'var(--color-bg-base)' }}
+      style={{
+        background: 'var(--color-bg-base)',
+        ['--content-font-family' as const]: toFontFamilyCSS(contentFontFamily, 'sans-serif'),
+        ['--content-font-size' as const]: `${contentFontSize}px`,
+      }}
       dangerouslySetInnerHTML={{ __html: html }}
     />
   )
