@@ -31,6 +31,11 @@ interface ContentState {
   closeTabByPath: (filePath: string) => void
   renameTabPath: (oldPath: string, newPath: string) => void
   resetAllTabs: () => void
+  // ショートカット用アクション
+  addNewTab: () => void
+  closeActiveTab: () => void
+  activateTabByIndex: (index: number) => void
+  activatePrevTab: () => void
 }
 
 const makeTab = (overrides?: Partial<ContentTab>): ContentTab => ({
@@ -199,5 +204,49 @@ export const useContentStore = create<ContentState>((set) => ({
       secondary: makeGroup(),
       splitEnabled: false,
       focusedPane: 'primary',
+    }),
+
+  addNewTab: () =>
+    set((state) => {
+      const pane = state.focusedPane
+      const group = state[pane]
+      const activeTab = group.tabs.find((t) => t.id === group.activeTabId)
+      // アクティブタブが空なら新規作成しない
+      if (activeTab?.filePath === null) return state
+      const newTab = makeTab()
+      return { [pane]: { tabs: [...group.tabs, newTab], activeTabId: newTab.id } }
+    }),
+
+  closeActiveTab: () =>
+    set((state) => {
+      const pane = state.focusedPane
+      const group = state[pane]
+      const activeId = group.activeTabId
+      if (group.tabs.length <= 1) {
+        const empty = makeTab()
+        return { [pane]: { tabs: [empty], activeTabId: empty.id } }
+      }
+      const idx = group.tabs.findIndex((t) => t.id === activeId)
+      const newTabs = group.tabs.filter((t) => t.id !== activeId)
+      const fallback = newTabs[Math.max(0, idx - 1)].id
+      return { [pane]: { tabs: newTabs, activeTabId: fallback } }
+    }),
+
+  activateTabByIndex: (index) =>
+    set((state) => {
+      const pane = state.focusedPane
+      const group = state[pane]
+      const tab = group.tabs[Math.min(index, group.tabs.length - 1)]
+      if (!tab) return state
+      return { [pane]: { ...group, activeTabId: tab.id } }
+    }),
+
+  activatePrevTab: () =>
+    set((state) => {
+      const pane = state.focusedPane
+      const group = state[pane]
+      const idx = group.tabs.findIndex((t) => t.id === group.activeTabId)
+      const prevIdx = (idx - 1 + group.tabs.length) % group.tabs.length
+      return { [pane]: { ...group, activeTabId: group.tabs[prevIdx].id } }
     }),
 }))

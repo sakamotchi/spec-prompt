@@ -16,6 +16,7 @@ interface TerminalState {
   primary: TerminalGroup
   secondary: TerminalGroup
   splitEnabled: boolean
+  focusedPane: 'primary' | 'secondary'
 
   addTab: (pane: 'primary' | 'secondary') => void
   closeTab: (id: string, pane: 'primary' | 'secondary') => void
@@ -24,6 +25,11 @@ interface TerminalState {
   appendScrollback: (tabId: string, data: string) => void
   moveTab: (tabId: string, fromPane: 'primary' | 'secondary', toPane: 'primary' | 'secondary') => void
   toggleSplit: () => void
+  setFocusedPane: (pane: 'primary' | 'secondary') => void
+  // ショートカット用アクション
+  closeActiveTab: (pane: 'primary' | 'secondary') => void
+  activateTabByIndex: (index: number, pane: 'primary' | 'secondary') => void
+  activatePrevTab: (pane: 'primary' | 'secondary') => void
 }
 
 const makeTab = (index: number): TerminalTab => ({
@@ -42,6 +48,7 @@ export const useTerminalStore = create<TerminalState>((set) => ({
   primary: makeGroup(1),
   secondary: makeGroup(1),
   splitEnabled: false,
+  focusedPane: 'primary',
 
   addTab: (pane) =>
     set((state) => {
@@ -117,4 +124,33 @@ export const useTerminalStore = create<TerminalState>((set) => ({
     }),
 
   toggleSplit: () => set((state) => ({ splitEnabled: !state.splitEnabled })),
+
+  setFocusedPane: (pane) => set({ focusedPane: pane }),
+
+  closeActiveTab: (pane) =>
+    set((state) => {
+      const group = state[pane]
+      if (group.tabs.length <= 1) return state
+      const activeId = group.activeTabId
+      const idx = group.tabs.findIndex((t) => t.id === activeId)
+      const newTabs = group.tabs.filter((t) => t.id !== activeId)
+      const fallback = newTabs[Math.max(0, idx - 1)].id
+      return { [pane]: { tabs: newTabs, activeTabId: fallback } }
+    }),
+
+  activateTabByIndex: (index, pane) =>
+    set((state) => {
+      const group = state[pane]
+      const tab = group.tabs[Math.min(index, group.tabs.length - 1)]
+      if (!tab) return state
+      return { [pane]: { ...group, activeTabId: tab.id } }
+    }),
+
+  activatePrevTab: (pane) =>
+    set((state) => {
+      const group = state[pane]
+      const idx = group.tabs.findIndex((t) => t.id === group.activeTabId)
+      const prevIdx = (idx - 1 + group.tabs.length) % group.tabs.length
+      return { [pane]: { ...group, activeTabId: group.tabs[prevIdx].id } }
+    }),
 }))

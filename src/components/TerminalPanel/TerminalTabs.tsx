@@ -17,6 +17,7 @@ function TerminalPane({ pane }: TerminalPaneProps) {
   const toggleSplit = useTerminalStore((s) => s.toggleSplit)
   const splitEnabled = useTerminalStore((s) => s.splitEnabled)
   const moveTab = useTerminalStore((s) => s.moveTab)
+  const setFocusedPane = useTerminalStore((s) => s.setFocusedPane)
 
   const [isDragOver, setIsDragOver] = useState(false)
   // ドラッグ中はターミナルコンテンツの pointer-events を無効化して xterm に drop が届かないようにする
@@ -79,6 +80,7 @@ function TerminalPane({ pane }: TerminalPaneProps) {
         outline: isDragOver ? '2px solid var(--color-accent)' : 'none',
         outlineOffset: '-2px',
       }}
+      onPointerDown={() => setFocusedPane(pane)}
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}

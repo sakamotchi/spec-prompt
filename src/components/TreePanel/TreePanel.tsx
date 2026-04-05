@@ -79,7 +79,11 @@ export function TreePanel() {
   }
 
   return (
-    <div className="flex flex-col h-full bg-[var(--color-bg-panel)] border-r border-[var(--color-border)]">
+    <div
+      data-panel="tree"
+      tabIndex={-1}
+      className="flex flex-col h-full bg-[var(--color-bg-panel)] border-r border-[var(--color-border)] outline-none"
+    >
       {/* ヘッダー */}
       <div className="flex items-center justify-between h-9 px-3 shrink-0 border-b border-[var(--color-border)]">
         <RecentProjectsMenu
