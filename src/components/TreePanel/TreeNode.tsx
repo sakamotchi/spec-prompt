@@ -1,13 +1,6 @@
 import { memo, useCallback, useState } from 'react'
-import {
-  ChevronRight,
-  ChevronDown,
-  Folder,
-  FolderOpen,
-  FileText,
-  File,
-  Loader2,
-} from 'lucide-react'
+import { ChevronRight, ChevronDown, Loader2 } from 'lucide-react'
+import { Icon } from '@iconify/react'
 import { useAppStore } from '../../stores/appStore'
 import { useContentStore } from '../../stores/contentStore'
 import { usePathInsertion } from '../../hooks/usePathInsertion'
@@ -17,6 +10,30 @@ import { TreeContextMenu } from './ContextMenu'
 import { InlineInput } from './InlineInput'
 import { DeleteDialog } from './DeleteDialog'
 import { DOC_STATUS_COLOR, type DocStatus } from '../../lib/frontmatter'
+
+const EXT_ICON_MAP: Record<string, string> = {
+  md:   'vscode-icons:file-type-markdown',
+  mdx:  'vscode-icons:file-type-markdown',
+  ts:   'vscode-icons:file-type-typescript',
+  tsx:  'vscode-icons:file-type-reactts',
+  js:   'vscode-icons:file-type-js',
+  jsx:  'vscode-icons:file-type-reactjs',
+  rs:   'vscode-icons:file-type-rust',
+  py:   'vscode-icons:file-type-python',
+  go:   'vscode-icons:file-type-go',
+  json: 'vscode-icons:file-type-json',
+  toml: 'vscode-icons:file-type-toml',
+  yaml: 'vscode-icons:file-type-yaml',
+  yml:  'vscode-icons:file-type-yaml',
+  css:  'vscode-icons:file-type-css',
+  html: 'vscode-icons:file-type-html',
+  sql:  'vscode-icons:file-type-sql',
+  txt:  'vscode-icons:file-type-text',
+}
+
+const FOLDER_ICON      = 'vscode-icons:default-folder'
+const FOLDER_OPEN_ICON = 'vscode-icons:default-folder-opened'
+const DEFAULT_FILE_ICON = 'vscode-icons:default-file'
 
 interface TreeNodeProps {
   node: FileNode
@@ -211,14 +228,18 @@ export const TreeNode = memo(function TreeNode({ node, depth }: TreeNodeProps) {
     if (node.is_dir) {
       if (isLoadingChildren)
         return <Loader2 size={14} className="shrink-0 animate-spin text-[var(--color-text-muted)]" />
-      return isExpanded
-        ? <FolderOpen size={14} className="shrink-0 text-[var(--color-accent)]" />
-        : <Folder size={14} className="shrink-0 text-[var(--color-text-muted)]" />
+      return (
+        <Icon
+          icon={isExpanded ? FOLDER_OPEN_ICON : FOLDER_ICON}
+          width={14}
+          height={14}
+          className="shrink-0"
+        />
+      )
     }
-    const isText = /\.(md|mdx|txt|ts|tsx|js|jsx|rs|py|go|json|toml|yaml|yml|css|html|sql)$/.test(node.name)
-    return isText
-      ? <FileText size={14} className="shrink-0 text-[var(--color-text-muted)]" />
-      : <File size={14} className="shrink-0 text-[var(--color-text-muted)]" />
+    const ext = node.name.split('.').pop()?.toLowerCase() ?? ''
+    const iconId = EXT_ICON_MAP[ext] ?? DEFAULT_FILE_ICON
+    return <Icon icon={iconId} width={14} height={14} className="shrink-0" />
   }
 
   return (
