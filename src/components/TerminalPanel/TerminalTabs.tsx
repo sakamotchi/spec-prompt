@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { Plus, X, Columns2 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { useTerminalStore } from '../../stores/terminalStore'
+import { useAppStore } from '../../stores/appStore'
 import { TerminalPanel } from './TerminalPanel'
 
 const DRAG_MIME = 'application/x-specprompt-tab'
@@ -13,6 +14,7 @@ interface TerminalPaneProps {
 function TerminalPane({ pane }: TerminalPaneProps) {
   const { t } = useTranslation()
   const group = useTerminalStore((s) => s[pane])
+  const projectRoot = useAppStore((s) => s.projectRoot)
   const addTab = useTerminalStore((s) => s.addTab)
   const closeTab = useTerminalStore((s) => s.closeTab)
   const setActiveTab = useTerminalStore((s) => s.setActiveTab)
@@ -166,7 +168,7 @@ function TerminalPane({ pane }: TerminalPaneProps) {
               className="absolute inset-0 p-1"
               style={{ display: isActive ? 'flex' : 'none' }}
             >
-              <TerminalPanel tabId={tab.id} cwd="~" isActive={isActive} />
+              <TerminalPanel tabId={tab.id} cwd={projectRoot ?? "~"} isActive={isActive} />
             </div>
           )
         })}

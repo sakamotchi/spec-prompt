@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
-import { FolderOpen, Loader2, AlertCircle, Settings } from 'lucide-react'
+import { FolderOpen, Loader2, AlertCircle, Settings, SquareArrowOutUpRight } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
+import { getCurrentWindow } from '@tauri-apps/api/window'
 import { useAppStore } from '../../stores/appStore'
 import { useContentStore } from '../../stores/contentStore'
 import { tauriApi } from '../../lib/tauriApi'
@@ -37,6 +38,12 @@ export function TreePanel() {
       .then(setRecentProjects)
       .catch(console.error)
   }, [setRecentProjects])
+
+  // プロジェクトが変わったらウィンドウタイトルを更新
+  useEffect(() => {
+    const name = projectRoot?.split('/').pop() ?? null
+    getCurrentWindow().setTitle(name ? `SpecPrompt — ${name}` : 'SpecPrompt').catch(console.error)
+  }, [projectRoot])
 
   // ルート直下への新規作成
   const showRootCreatingInput =
@@ -101,6 +108,13 @@ export function TreePanel() {
             className="p-1 rounded hover:bg-[var(--color-bg-elevated)] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] transition-colors"
           >
             <FolderOpen size={14} />
+          </button>
+          <button
+            onClick={() => tauriApi.openNewWindow()}
+            title={t('tree.tooltip.newWindow')}
+            className="p-1 rounded hover:bg-[var(--color-bg-elevated)] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] transition-colors"
+          >
+            <SquareArrowOutUpRight size={14} />
           </button>
           <button
             onClick={() => setSettingsOpen(true)}

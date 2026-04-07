@@ -1,5 +1,6 @@
 import { useEffect } from 'react'
 import { invoke } from '@tauri-apps/api/core'
+import { useTranslation } from 'react-i18next'
 import { useContentStore } from '../../stores/contentStore'
 import { getViewMode } from '../../lib/viewMode'
 import { MarkdownPreview } from './MarkdownPreview'
@@ -11,6 +12,7 @@ interface ContentViewProps {
 }
 
 export function ContentView({ tabId }: ContentViewProps) {
+  const { t } = useTranslation()
   const tab = useContentStore(
     (s) =>
       s.primary.tabs.find((t) => t.id === tabId) ??
@@ -38,7 +40,7 @@ export function ContentView({ tabId }: ContentViewProps) {
         className="flex items-center justify-center h-full text-sm"
         style={{ color: 'var(--color-text-muted)' }}
       >
-        {tab?.isLoading ? '読み込み中...' : 'ファイルを選択してください'}
+        {tab?.isLoading ? t('content.loading') : t('content.empty')}
       </div>
     )
   }

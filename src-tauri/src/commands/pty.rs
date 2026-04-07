@@ -49,8 +49,18 @@ pub fn spawn_pty(
         })
         .map_err(|e| e.to_string())?;
 
+    let resolved_cwd = if cwd.starts_with('~') {
+        if let Ok(home) = std::env::var("HOME") {
+            cwd.replacen('~', &home, 1)
+        } else {
+            cwd.clone()
+        }
+    } else {
+        cwd.clone()
+    };
+
     let mut cmd = CommandBuilder::new(&shell);
-    cmd.cwd(&cwd);
+    cmd.cwd(&resolved_cwd);
 
     let _child = pair
         .slave

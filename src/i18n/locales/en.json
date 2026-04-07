@@ -8,6 +8,7 @@
     "emptyState": "Open a folder to get started",
     "tooltip": {
       "openProject": "Open Project",
+      "newWindow": "Open in New Window",
       "settings": "Settings"
     }
   },
@@ -19,6 +20,7 @@
     "newFolder": "New Folder",
     "openInFinder": "Reveal in Finder",
     "openInEditor": "Open in External Editor",
+    "openInNewWindow": "Open in New Window",
     "rename": "Rename",
     "delete": "Delete"
   },
@@ -37,6 +39,8 @@
   },
   "content": {
     "newTab": "New Tab",
+    "loading": "Loading...",
+    "empty": "Select a file to view",
     "tooltip": {
       "split": "Split Content"
     }

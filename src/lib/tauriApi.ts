@@ -1,5 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen, UnlistenFn } from "@tauri-apps/api/event";
+import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
 import { open } from "@tauri-apps/plugin-dialog";
 
 export interface FileNode {
@@ -54,6 +55,22 @@ export const tauriApi = {
     open({ directory: true, multiple: false }).then((result) =>
       typeof result === "string" ? result : null
     ),
+
+  // Window management
+  openNewWindow: (projectPath?: string): void => {
+    const label = `window-${Date.now()}`
+    const url = projectPath
+      ? `index.html?project=${encodeURIComponent(projectPath)}`
+      : 'index.html?new=1'
+    const win = new WebviewWindow(label, {
+      url,
+      title: 'SpecPrompt',
+      width: 1200,
+      height: 800,
+      resizable: true,
+    })
+    win.once('tauri://error', (e) => console.error('Failed to create window:', e))
+  },
 
   // Config
   getRecentProjects: (): Promise<string[]> =>
