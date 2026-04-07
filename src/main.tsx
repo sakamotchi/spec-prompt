@@ -6,6 +6,8 @@ import App from "./App";
 import { useSettingsStore } from "./stores/settingsStore";
 import { useAppStore } from "./stores/appStore";
 import i18n from "./i18n";
+import { loadWindowSessions, clearWindowSessions } from "./lib/windowSession";
+import { tauriApi } from "./lib/tauriApi";
 
 class ErrorBoundary extends Component<{ children: ReactNode }, { error: Error | null }> {
   state = { error: null }
@@ -46,6 +48,28 @@ if (initialProject) {
     creatingState: null,
     docStatuses: {},
   })
+} else {
+  // メインウィンドウ起動: 前回セッションの追加ウィンドウを復元
+  const sessions = loadWindowSessions()
+  clearWindowSessions()  // セッションはウィンドウが開かれるたびに再構築される
+  
+  // メインウィンドウ自身の前回セッションを取り出して復元する（Zustand の Persist を上書きするため）
+  const mainIndex = sessions.findIndex(s => s.label === 'main')
+  if (mainIndex !== -1) {
+    const [mainSession] = sessions.splice(mainIndex, 1)
+    if (mainSession.projectRoot) {
+      useAppStore.getState().switchProject(mainSession.projectRoot)
+    } else {
+      useAppStore.setState({
+        projectRoot: null, fileTree: [], expandedDirs: new Set(),
+        selectedFile: null, selectedFiles: [], editingState: null, creatingState: null, docStatuses: {}
+      })
+    }
+  }
+
+  for (const session of sessions) {
+    tauriApi.openNewWindow(session.projectRoot ?? undefined)
+  }
 }
 
 createRoot(document.getElementById("root")!).render(

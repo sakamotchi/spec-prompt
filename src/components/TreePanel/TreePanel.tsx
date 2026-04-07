@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { FolderOpen, Loader2, AlertCircle, Settings, SquareArrowOutUpRight } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { getCurrentWindow } from '@tauri-apps/api/window'
+import { saveMySession, consolidateAndSave, clearMySession } from '../../lib/windowSession'
 import { useAppStore } from '../../stores/appStore'
 import { useContentStore } from '../../stores/contentStore'
 import { tauriApi } from '../../lib/tauriApi'
@@ -44,6 +45,30 @@ export function TreePanel() {
     const name = projectRoot?.split('/').pop() ?? null
     getCurrentWindow().setTitle(name ? `SpecPrompt — ${name}` : 'SpecPrompt').catch(console.error)
   }, [projectRoot])
+
+  // 追加ウィンドウ・メインウィンドウ共通: projectRoot が変わったら自身のセッションを更新
+  useEffect(() => {
+    const win = getCurrentWindow()
+    saveMySession(win.label, projectRoot)
+  }, [projectRoot])
+
+  // ウィンドウ閉じイベント: セッション情報を更新
+  useEffect(() => {
+    const win = getCurrentWindow()
+    let unlisten: (() => void) | null = null
+    win.onCloseRequested(() => {
+      if (win.label === 'main') {
+        // メインウィンドウが閉じるとき: 生きている追加ウィンドウを統合保存
+        // （追加ウィンドウが先に閉じても per-window キーは残るので正しく取れる）
+        consolidateAndSave()
+      } else {
+        // 追加ウィンドウが明示的に閉じられたとき、自身のセッションを削除する
+        // これを行わないと、強制終了時の拾い上げによる復元時に、手動で閉じたウィンドウまで復活してしまう
+        clearMySession(win.label)
+      }
+    }).then((fn) => { unlisten = fn }).catch(console.error)
+    return () => { unlisten?.() }
+  }, [])
 
   // ルート直下への新規作成
   const showRootCreatingInput =

@@ -58,7 +58,7 @@ export const tauriApi = {
 
   // Window management
   openNewWindow: (projectPath?: string): void => {
-    const label = `window-${Date.now()}`
+    const label = `window-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`
     const url = projectPath
       ? `index.html?project=${encodeURIComponent(projectPath)}`
       : 'index.html?new=1'
