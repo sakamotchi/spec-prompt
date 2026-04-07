@@ -1,11 +1,5 @@
 export type DocStatus = 'draft' | 'reviewing' | 'approved'
 
-export const DOC_STATUS_LABEL: Record<DocStatus, string> = {
-  draft: '草稿',
-  reviewing: 'レビュー中',
-  approved: '承認済',
-}
-
 export const DOC_STATUS_COLOR: Record<DocStatus, string> = {
   draft: '#6b7280',
   reviewing: '#eab308',

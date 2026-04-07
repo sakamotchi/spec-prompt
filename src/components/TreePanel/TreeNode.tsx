@@ -1,6 +1,7 @@
 import { memo, useCallback, useState } from 'react'
 import { ChevronRight, ChevronDown, Loader2 } from 'lucide-react'
 import { Icon } from '@iconify/react'
+import { useTranslation } from 'react-i18next'
 import { useAppStore } from '../../stores/appStore'
 import { useContentStore } from '../../stores/contentStore'
 import { usePathInsertion } from '../../hooks/usePathInsertion'
@@ -45,6 +46,7 @@ function parentDir(path: string): string {
 }
 
 export const TreeNode = memo(function TreeNode({ node, depth }: TreeNodeProps) {
+  const { t } = useTranslation()
   const selectedFile = useAppStore((s) => s.selectedFile)
   const expandedDirs = useAppStore((s) => s.expandedDirs)
   const selectedFiles = useAppStore((s) => s.selectedFiles)
@@ -307,7 +309,7 @@ export const TreeNode = memo(function TreeNode({ node, depth }: TreeNodeProps) {
         {/* 新規作成インライン入力（展開中のディレクトリの末尾） */}
         {showCreatingInput && (
           <InlineInput
-            placeholder={creatingState!.nodeType === 'file' ? 'ファイル名...' : 'フォルダ名...'}
+            placeholder={creatingState!.nodeType === 'file' ? t('tree.placeholder.file') : t('tree.placeholder.folder')}
             depth={depth + 1}
             onCommit={handleCreateCommit}
             onCancel={() => setCreatingState(null)}

@@ -1,13 +1,14 @@
 import * as Dialog from '@radix-ui/react-dialog'
 import { X } from 'lucide-react'
-import { SHORTCUT_DEFS, type ShortcutCategory } from '../../lib/shortcuts'
+import { useTranslation } from 'react-i18next'
+import { SHORTCUT_DEFS } from '../../lib/shortcuts'
 
-const CATEGORY_ORDER: ShortcutCategory[] = [
-  'ペイン切り替え',
-  'タブ操作',
-  '分割表示',
-  'フォーカス移動',
-  'その他',
+const CATEGORY_KEY_ORDER = [
+  'shortcuts.category.pane',
+  'shortcuts.category.tab',
+  'shortcuts.category.split',
+  'shortcuts.category.focus',
+  'shortcuts.category.other',
 ]
 
 interface ShortcutsModalProps {
@@ -16,9 +17,11 @@ interface ShortcutsModalProps {
 }
 
 export function ShortcutsModal({ open, onOpenChange }: ShortcutsModalProps) {
-  const grouped = CATEGORY_ORDER.map((cat) => ({
-    category: cat,
-    items: SHORTCUT_DEFS.filter((d) => d.category === cat),
+  const { t } = useTranslation()
+
+  const grouped = CATEGORY_KEY_ORDER.map((catKey) => ({
+    categoryKey: catKey,
+    items: SHORTCUT_DEFS.filter((d) => d.categoryKey === catKey),
   })).filter((g) => g.items.length > 0)
 
   return (
@@ -30,7 +33,7 @@ export function ShortcutsModal({ open, onOpenChange }: ShortcutsModalProps) {
         >
           <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--color-border)]">
             <Dialog.Title className="text-sm font-semibold text-[var(--color-text-primary)]">
-              キーボードショートカット
+              {t('shortcuts.title')}
             </Dialog.Title>
             <Dialog.Close className="p-1 rounded hover:bg-[var(--color-bg-panel)] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] transition-colors">
               <X size={14} />
@@ -38,19 +41,19 @@ export function ShortcutsModal({ open, onOpenChange }: ShortcutsModalProps) {
           </div>
 
           <div className="px-5 py-4 flex flex-col gap-5 max-h-[70vh] overflow-y-auto">
-            {grouped.map(({ category, items }) => (
-              <section key={category}>
+            {grouped.map(({ categoryKey, items }) => (
+              <section key={categoryKey}>
                 <h3 className="text-xs font-semibold text-[var(--color-text-muted)] uppercase tracking-wider mb-2">
-                  {category}
+                  {t(categoryKey)}
                 </h3>
                 <div className="flex flex-col gap-1">
                   {items.map((def) => (
                     <div
-                      key={def.label}
+                      key={def.labelKey}
                       className="flex items-center justify-between gap-4"
                     >
                       <span className="text-xs text-[var(--color-text-primary)]">
-                        {def.label}
+                        {t(def.labelKey)}
                       </span>
                       <div className="flex items-center gap-1 flex-shrink-0">
                         {def.keys.map((k, i) => (

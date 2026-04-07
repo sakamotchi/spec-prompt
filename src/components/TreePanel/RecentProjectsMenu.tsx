@@ -1,5 +1,6 @@
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu'
 import { ChevronDown, Check, FolderOpen } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 
 interface RecentProjectsMenuProps {
   projectName: string | null
@@ -17,6 +18,7 @@ export function RecentProjectsMenu({
   currentProject,
   onSelect,
 }: RecentProjectsMenuProps) {
+  const { t } = useTranslation()
   return (
     <DropdownMenu.Root>
       <DropdownMenu.Trigger asChild>
@@ -25,7 +27,7 @@ export function RecentProjectsMenu({
           style={{ color: 'var(--color-text-muted)' }}
           title={currentProject ?? undefined}
         >
-          <span className="truncate">{projectName ?? 'プロジェクト'}</span>
+          <span className="truncate">{projectName ?? t('recentProjects.defaultName')}</span>
           <ChevronDown size={10} className="shrink-0" />
         </button>
       </DropdownMenu.Trigger>
@@ -44,7 +46,7 @@ export function RecentProjectsMenu({
             className="px-3 h-6 flex items-center text-xs"
             style={{ color: 'var(--color-text-muted)' }}
           >
-            最近開いたプロジェクト
+            {t('recentProjects.label')}
           </DropdownMenu.Label>
 
           {recentProjects.length === 0 ? (
@@ -52,7 +54,7 @@ export function RecentProjectsMenu({
               className="px-3 h-7 flex items-center text-xs"
               style={{ color: 'var(--color-text-muted)' }}
             >
-              履歴がありません
+              {t('recentProjects.empty')}
             </div>
           ) : (
             <>

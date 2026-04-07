@@ -1,10 +1,10 @@
 import * as RadixContextMenu from '@radix-ui/react-context-menu'
 import { FilePlus, FolderPlus, ExternalLink, Pencil, Trash2, Check, ChevronRight } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { useAppStore } from '../../stores/appStore'
 import { usePathInsertion } from '../../hooks/usePathInsertion'
 import { tauriApi } from '../../lib/tauriApi'
 import {
-  DOC_STATUS_LABEL,
   DOC_STATUS_COLOR,
   parseStatus,
   setStatus,
@@ -68,6 +68,7 @@ function Separator() {
 const DOC_STATUSES: DocStatus[] = ['draft', 'reviewing', 'approved']
 
 function StatusSubMenu({ path }: { path: string }) {
+  const { t } = useTranslation()
   const docStatuses = useAppStore((s) => s.docStatuses)
   const setDocStatus = useAppStore((s) => s.setDocStatus)
   const current: DocStatus | null | undefined = docStatuses[path]
@@ -97,7 +98,7 @@ function StatusSubMenu({ path }: { path: string }) {
           e.currentTarget.style.color = 'var(--color-text-primary)'
         }}
       >
-        <span>ステータス</span>
+        <span>{t('contextMenu.status')}</span>
         <ChevronRight size={12} />
       </RadixContextMenu.SubTrigger>
 
@@ -129,7 +130,7 @@ function StatusSubMenu({ path }: { path: string }) {
                 className="w-2 h-2 rounded-full shrink-0"
                 style={{ background: DOC_STATUS_COLOR[status] }}
               />
-              <span className="flex-1">{DOC_STATUS_LABEL[status]}</span>
+              <span className="flex-1">{t(`docStatus.${status}`)}</span>
               {current === status && <Check size={12} />}
             </RadixContextMenu.Item>
           ))}
@@ -149,6 +150,7 @@ export function TreeContextMenu({
   onDelete,
   onOpenInEditor,
 }: TreeContextMenuProps) {
+  const { t } = useTranslation()
   const selectedFiles = useAppStore((s) => s.selectedFiles)
   const { insertPath } = usePathInsertion()
 
@@ -180,14 +182,14 @@ export function TreeContextMenu({
           <MenuItem
             onSelect={handleInsertPath}
             icon={null}
-            label="パスをターミナルに挿入"
+            label={t('contextMenu.insertPath')}
           />
 
           {showInsertSelected && (
             <MenuItem
               onSelect={() => insertPath(selectedFiles)}
               icon={null}
-              label={`選択中 ${selectedFiles.length} 件をすべて挿入`}
+              label={t('contextMenu.insertAll', { count: selectedFiles.length })}
             />
           )}
 
@@ -197,12 +199,12 @@ export function TreeContextMenu({
           <MenuItem
             onSelect={onNewFile}
             icon={<FilePlus size={12} />}
-            label="新規ファイル"
+            label={t('contextMenu.newFile')}
           />
           <MenuItem
             onSelect={onNewFolder}
             icon={<FolderPlus size={12} />}
-            label="新規フォルダ"
+            label={t('contextMenu.newFolder')}
           />
 
           <Separator />
@@ -210,7 +212,7 @@ export function TreeContextMenu({
           <MenuItem
             onSelect={onOpenInEditor}
             icon={<ExternalLink size={12} />}
-            label={isDir ? 'Finderで開く' : '外部エディタで開く'}
+            label={isDir ? t('contextMenu.openInFinder') : t('contextMenu.openInEditor')}
           />
 
           {isMd && (
@@ -225,12 +227,12 @@ export function TreeContextMenu({
           <MenuItem
             onSelect={onRename}
             icon={<Pencil size={12} />}
-            label="リネーム"
+            label={t('contextMenu.rename')}
           />
           <MenuItem
             onSelect={onDelete}
             icon={<Trash2 size={12} />}
-            label="削除"
+            label={t('contextMenu.delete')}
             danger
           />
         </RadixContextMenu.Content>

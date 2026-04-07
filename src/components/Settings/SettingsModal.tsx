@@ -2,7 +2,8 @@ import * as Dialog from '@radix-ui/react-dialog'
 import * as Slider from '@radix-ui/react-slider'
 import { X } from 'lucide-react'
 import { useState, useEffect } from 'react'
-import { useSettingsStore, type Theme } from '../../stores/settingsStore'
+import { useTranslation } from 'react-i18next'
+import { useSettingsStore, type Theme, type Language } from '../../stores/settingsStore'
 
 interface SettingsModalProps {
   open: boolean
@@ -10,8 +11,11 @@ interface SettingsModalProps {
 }
 
 export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
+  const { t } = useTranslation()
   const theme = useSettingsStore((s) => s.theme)
   const setTheme = useSettingsStore((s) => s.setTheme)
+  const language = useSettingsStore((s) => s.language)
+  const setLanguage = useSettingsStore((s) => s.setLanguage)
   const contentFontFamily = useSettingsStore((s) => s.contentFontFamily)
   const setContentFontFamily = useSettingsStore((s) => s.setContentFontFamily)
   const contentFontSize = useSettingsStore((s) => s.contentFontSize)
@@ -22,9 +26,13 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
   const setTerminalFontSize = useSettingsStore((s) => s.setTerminalFontSize)
 
   const themeOptions: { value: Theme; label: string }[] = [
-    { value: 'dark', label: 'ダーク' },
-    { value: 'light', label: 'ライト' },
-    { value: 'system', label: 'システム' },
+    { value: 'dark', label: t('settings.theme.dark') },
+    { value: 'light', label: t('settings.theme.light') },
+    { value: 'system', label: t('settings.theme.system') },
+  ]
+  const languageOptions: { value: Language; label: string }[] = [
+    { value: 'ja', label: t('settings.language.ja') },
+    { value: 'en', label: t('settings.language.en') },
   ]
   const terminalFontOptions = [
     'Geist Mono',
@@ -45,7 +53,7 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
           {/* ヘッダー */}
           <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--color-border)]">
             <Dialog.Title className="text-sm font-semibold text-[var(--color-text-primary)]">
-              外観設定
+              {t('settings.title')}
             </Dialog.Title>
             <Dialog.Close className="p-1 rounded hover:bg-[var(--color-bg-panel)] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] transition-colors">
               <X size={14} />
@@ -56,7 +64,7 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
             {/* テーマセクション */}
             <section>
               <h3 className="text-xs font-semibold text-[var(--color-text-muted)] uppercase tracking-wider mb-3">
-                テーマ
+                {t('settings.section.theme')}
               </h3>
               <div className="flex gap-2">
                 {themeOptions.map((opt) => (
@@ -78,11 +86,11 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
             {/* コンテンツセクション */}
             <section>
               <h3 className="text-xs font-semibold text-[var(--color-text-muted)] uppercase tracking-wider mb-3">
-                コンテンツ
+                {t('settings.section.content')}
               </h3>
               <div className="flex flex-col gap-3">
                 <div className="flex items-center justify-between gap-3">
-                  <span className="text-xs text-[var(--color-text-muted)] shrink-0">フォント</span>
+                  <span className="text-xs text-[var(--color-text-muted)] shrink-0">{t('settings.label.font')}</span>
                   <FontInput
                     value={contentFontFamily}
                     placeholder="Geist, Inter, system-ui ..."
@@ -90,7 +98,7 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
                   />
                 </div>
                 <div className="flex items-center justify-between gap-3">
-                  <span className="text-xs text-[var(--color-text-muted)] shrink-0">サイズ</span>
+                  <span className="text-xs text-[var(--color-text-muted)] shrink-0">{t('settings.label.size')}</span>
                   <SizeSlider
                     value={contentFontSize}
                     min={12}
@@ -104,11 +112,11 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
             {/* ターミナルセクション */}
             <section>
               <h3 className="text-xs font-semibold text-[var(--color-text-muted)] uppercase tracking-wider mb-3">
-                ターミナル
+                {t('settings.section.terminal')}
               </h3>
               <div className="flex flex-col gap-3">
                 <div className="flex items-center justify-between gap-3">
-                  <span className="text-xs text-[var(--color-text-muted)] shrink-0">フォント</span>
+                  <span className="text-xs text-[var(--color-text-muted)] shrink-0">{t('settings.label.font')}</span>
                   <FontCommitInput
                     value={terminalFontFamily}
                     suggestions={terminalFontOptions}
@@ -117,7 +125,7 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
                   />
                 </div>
                 <div className="flex items-center justify-between gap-3">
-                  <span className="text-xs text-[var(--color-text-muted)] shrink-0">サイズ</span>
+                  <span className="text-xs text-[var(--color-text-muted)] shrink-0">{t('settings.label.size')}</span>
                   <SizeSlider
                     value={terminalFontSize}
                     min={11}
@@ -125,6 +133,28 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
                     onChange={setTerminalFontSize}
                   />
                 </div>
+              </div>
+            </section>
+
+            {/* 言語セクション */}
+            <section>
+              <h3 className="text-xs font-semibold text-[var(--color-text-muted)] uppercase tracking-wider mb-3">
+                {t('settings.section.language')}
+              </h3>
+              <div className="flex gap-2">
+                {languageOptions.map((opt) => (
+                  <button
+                    key={opt.value}
+                    onClick={() => setLanguage(opt.value)}
+                    className={`flex-1 py-1.5 text-xs rounded border transition-colors ${
+                      language === opt.value
+                        ? 'border-[var(--color-accent)] bg-[var(--color-accent)]/10 text-[var(--color-accent)]'
+                        : 'border-[var(--color-border)] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:border-[var(--color-text-muted)]'
+                    }`}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
               </div>
             </section>
           </div>
@@ -145,6 +175,7 @@ function FontCommitInput({
   fallbackValue: string
   onChange: (v: string) => void
 }) {
+  const { t } = useTranslation()
   const [localValue, setLocalValue] = useState(value)
 
   useEffect(() => { setLocalValue(value) }, [value])
@@ -182,7 +213,7 @@ function FontCommitInput({
         disabled={!canApply}
         className="px-2 py-1 text-xs rounded border border-[var(--color-border)] text-[var(--color-text-primary)] bg-[var(--color-bg-panel)] hover:border-[var(--color-text-muted)] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
       >
-        適用
+        {t('settings.button.apply')}
       </button>
     </div>
   )

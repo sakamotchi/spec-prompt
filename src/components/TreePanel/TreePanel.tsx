@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { FolderOpen, Loader2, AlertCircle, Settings } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { useAppStore } from '../../stores/appStore'
 import { useContentStore } from '../../stores/contentStore'
 import { tauriApi } from '../../lib/tauriApi'
@@ -24,6 +25,7 @@ export function TreePanel() {
 
   const resetAllTabs = useContentStore((s) => s.resetAllTabs)
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const { t } = useTranslation()
 
   const projectName = projectRoot
     ? projectRoot.split('/').pop() ?? projectRoot
@@ -95,14 +97,14 @@ export function TreePanel() {
         <div className="flex items-center gap-1">
           <button
             onClick={handleOpen}
-            title="プロジェクトを開く"
+            title={t('tree.tooltip.openProject')}
             className="p-1 rounded hover:bg-[var(--color-bg-elevated)] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] transition-colors"
           >
             <FolderOpen size={14} />
           </button>
           <button
             onClick={() => setSettingsOpen(true)}
-            title="設定"
+            title={t('tree.tooltip.settings')}
             className="p-1 rounded hover:bg-[var(--color-bg-elevated)] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] transition-colors"
           >
             <Settings size={14} />
@@ -116,7 +118,7 @@ export function TreePanel() {
         {loading && (
           <div className="flex items-center justify-center h-16 gap-2 text-[var(--color-text-muted)] text-xs">
             <Loader2 size={14} className="animate-spin" />
-            読み込み中...
+            {t('tree.loading')}
           </div>
         )}
 
@@ -130,7 +132,7 @@ export function TreePanel() {
         {!loading && !error && !projectRoot && (
           <div className="flex flex-col items-center justify-center h-full gap-2 text-[var(--color-text-muted)] text-xs px-4 text-center">
             <FolderOpen size={24} className="opacity-40" />
-            <span>フォルダを開いてください</span>
+            <span>{t('tree.emptyState')}</span>
           </div>
         )}
 
@@ -141,7 +143,7 @@ export function TreePanel() {
         {/* ルート直下への新規作成インライン入力 */}
         {showRootCreatingInput && (
           <InlineInput
-            placeholder={creatingState!.nodeType === 'file' ? 'ファイル名...' : 'フォルダ名...'}
+            placeholder={creatingState!.nodeType === 'file' ? t('tree.placeholder.file') : t('tree.placeholder.folder')}
             depth={0}
             onCommit={handleRootCreateCommit}
             onCancel={() => setCreatingState(null)}

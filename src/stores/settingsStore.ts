@@ -1,7 +1,11 @@
 import { create } from 'zustand'
 import { tauriApi } from '../lib/tauriApi'
+import i18n from '../i18n'
 
 export type Theme = 'dark' | 'light' | 'system'
+export type Language = 'ja' | 'en'
+
+const LANGUAGE_KEY = 'spec-prompt-language'
 
 export interface AppearanceSettings {
   theme: Theme
@@ -20,11 +24,13 @@ export const DEFAULT_SETTINGS: AppearanceSettings = {
 }
 
 interface SettingsState extends AppearanceSettings {
+  language: Language
   setTheme: (theme: Theme) => void
   setContentFontFamily: (family: string) => void
   setContentFontSize: (size: number) => void
   setTerminalFontFamily: (family: string) => void
   setTerminalFontSize: (size: number) => void
+  setLanguage: (lang: Language) => void
   loadSettings: () => Promise<void>
   saveSettings: () => Promise<void>
 }
@@ -42,6 +48,7 @@ export function applyTheme(theme: Theme) {
 
 export const useSettingsStore = create<SettingsState>()((set, get) => ({
   ...DEFAULT_SETTINGS,
+  language: (localStorage.getItem(LANGUAGE_KEY) as Language) ?? 'ja',
 
   setTheme: (theme) => {
     set({ theme })
@@ -63,6 +70,12 @@ export const useSettingsStore = create<SettingsState>()((set, get) => ({
   setTerminalFontSize: (size) => {
     set({ terminalFontSize: size })
     get().saveSettings()
+  },
+
+  setLanguage: (lang) => {
+    set({ language: lang })
+    localStorage.setItem(LANGUAGE_KEY, lang)
+    i18n.changeLanguage(lang)
   },
 
   loadSettings: async () => {

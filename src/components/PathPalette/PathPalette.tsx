@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import * as Dialog from '@radix-ui/react-dialog'
 import { Search } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { useAppStore } from '../../stores/appStore'
 import { usePathInsertion } from '../../hooks/usePathInsertion'
 import type { FileNode } from '../../lib/tauriApi'
@@ -51,6 +52,7 @@ interface PathPaletteProps {
 }
 
 export function PathPalette({ open, onClose }: PathPaletteProps) {
+  const { t } = useTranslation()
   const fileTree = useAppStore((s) => s.fileTree)
   const projectRoot = useAppStore((s) => s.projectRoot)
   const { insertPath } = usePathInsertion()
@@ -129,7 +131,7 @@ export function PathPalette({ open, onClose }: PathPaletteProps) {
             transform: 'translateX(-50%)',
           }}
           onKeyDown={handleKeyDown}
-          aria-label="パス検索パレット"
+          aria-label={t('pathPalette.ariaLabel')}
         >
           {/* 検索入力 */}
           <div
@@ -141,11 +143,11 @@ export function PathPalette({ open, onClose }: PathPaletteProps) {
               ref={inputRef}
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="ファイルを検索してターミナルに挿入..."
+              placeholder={t('pathPalette.placeholder')}
               className="flex-1 bg-transparent text-sm outline-none"
               style={{ color: 'var(--color-text-primary)' }}
             />
-            <span className="text-xs" style={{ color: 'var(--color-text-muted)' }}>Esc で閉じる</span>
+            <span className="text-xs" style={{ color: 'var(--color-text-muted)' }}>{t('pathPalette.hint')}</span>
           </div>
 
           {/* 候補一覧 */}
@@ -159,7 +161,7 @@ export function PathPalette({ open, onClose }: PathPaletteProps) {
                 className="flex items-center justify-center h-16 text-xs"
                 style={{ color: 'var(--color-text-muted)' }}
               >
-                一致するファイルが見つかりません
+                {t('pathPalette.noResults')}
               </div>
             ) : (
               filtered.map((item, i) => (
@@ -188,8 +190,8 @@ export function PathPalette({ open, onClose }: PathPaletteProps) {
                 color: 'var(--color-text-muted)',
               }}
             >
-              {filtered.length} 件
-              {allItems.length > 100 && allItems.length === filtered.length && '（上位100件）'}
+              {t('pathPalette.count', { count: filtered.length })}
+              {allItems.length > 100 && allItems.length === filtered.length && t('pathPalette.countLimit')}
             </div>
           )}
         </Dialog.Content>

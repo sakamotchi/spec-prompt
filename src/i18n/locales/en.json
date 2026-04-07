@@ -1,0 +1,128 @@
+{
+  "tree": {
+    "placeholder": {
+      "file": "File name...",
+      "folder": "Folder name..."
+    },
+    "loading": "Loading...",
+    "emptyState": "Open a folder to get started",
+    "tooltip": {
+      "openProject": "Open Project",
+      "settings": "Settings"
+    }
+  },
+  "contextMenu": {
+    "status": "Status",
+    "insertPath": "Insert Path to Terminal",
+    "insertAll": "Insert All {{count}} Selected",
+    "newFile": "New File",
+    "newFolder": "New Folder",
+    "openInFinder": "Reveal in Finder",
+    "openInEditor": "Open in External Editor",
+    "rename": "Rename",
+    "delete": "Delete"
+  },
+  "recentProjects": {
+    "label": "Recent Projects",
+    "empty": "No recent projects",
+    "defaultName": "Project"
+  },
+  "deleteDialog": {
+    "titleFolder": "Delete Folder",
+    "titleFile": "Delete File",
+    "descSuffixFolder": " will be deleted along with all files inside. This action cannot be undone.",
+    "descSuffixFile": " will be deleted. This action cannot be undone.",
+    "cancel": "Cancel",
+    "confirm": "Delete"
+  },
+  "content": {
+    "newTab": "New Tab",
+    "tooltip": {
+      "split": "Split Content"
+    }
+  },
+  "mainArea": {
+    "tab": {
+      "content": "Content",
+      "terminal": "Terminal"
+    },
+    "tooltip": {
+      "splitView": "Split View (Ctrl+\\)",
+      "disableSplit": "Disable Split"
+    },
+    "header": {
+      "content": "Content",
+      "terminal": "Terminal"
+    }
+  },
+  "terminal": {
+    "tooltip": {
+      "newTab": "New Terminal",
+      "split": "Split Terminal"
+    },
+    "error": {
+      "ptyStart": "PTY startup error: {{error}}"
+    }
+  },
+  "pathPalette": {
+    "ariaLabel": "Path Search Palette",
+    "placeholder": "Search files to insert into terminal...",
+    "hint": "Esc to close",
+    "noResults": "No matching files found",
+    "count": "{{count}} results",
+    "countLimit": "(top 100)"
+  },
+  "shortcuts": {
+    "title": "Keyboard Shortcuts",
+    "category": {
+      "pane": "Pane Switching",
+      "tab": "Tab Operations",
+      "split": "Split View",
+      "focus": "Focus Navigation",
+      "other": "Other"
+    },
+    "label": {
+      "togglePane": "Toggle Content/Terminal",
+      "newTerminalTab": "New Terminal Tab",
+      "closeTab": "Close Tab",
+      "prevTab": "Previous Tab",
+      "nthTab": "Go to Tab n",
+      "splitContent": "Toggle Content Split",
+      "splitTerminal": "Toggle Terminal Split",
+      "parallelView": "Toggle Parallel View",
+      "focusTree": "Focus Tree Panel",
+      "pathPalette": "Path Search Palette",
+      "shortcutList": "Shortcut List"
+    }
+  },
+  "settings": {
+    "title": "Appearance",
+    "section": {
+      "theme": "Theme",
+      "content": "Content",
+      "terminal": "Terminal",
+      "language": "Language"
+    },
+    "theme": {
+      "dark": "Dark",
+      "light": "Light",
+      "system": "System"
+    },
+    "label": {
+      "font": "Font",
+      "size": "Size"
+    },
+    "language": {
+      "ja": "Japanese",
+      "en": "English"
+    },
+    "button": {
+      "apply": "Apply"
+    }
+  },
+  "docStatus": {
+    "draft": "Draft",
+    "reviewing": "Reviewing",
+    "approved": "Approved"
+  }
+}

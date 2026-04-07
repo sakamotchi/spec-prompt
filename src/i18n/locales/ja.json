@@ -1,0 +1,128 @@
+{
+  "tree": {
+    "placeholder": {
+      "file": "ファイル名...",
+      "folder": "フォルダ名..."
+    },
+    "loading": "読み込み中...",
+    "emptyState": "フォルダを開いてください",
+    "tooltip": {
+      "openProject": "プロジェクトを開く",
+      "settings": "設定"
+    }
+  },
+  "contextMenu": {
+    "status": "ステータス",
+    "insertPath": "パスをターミナルに挿入",
+    "insertAll": "選択中 {{count}} 件をすべて挿入",
+    "newFile": "新規ファイル",
+    "newFolder": "新規フォルダ",
+    "openInFinder": "Finderで開く",
+    "openInEditor": "外部エディタで開く",
+    "rename": "リネーム",
+    "delete": "削除"
+  },
+  "recentProjects": {
+    "label": "最近開いたプロジェクト",
+    "empty": "履歴がありません",
+    "defaultName": "プロジェクト"
+  },
+  "deleteDialog": {
+    "titleFolder": "フォルダを削除",
+    "titleFile": "ファイルを削除",
+    "descSuffixFolder": " を削除します。フォルダ内のファイルもすべて削除されます。この操作は取り消せません。",
+    "descSuffixFile": " を削除します。この操作は取り消せません。",
+    "cancel": "キャンセル",
+    "confirm": "削除"
+  },
+  "content": {
+    "newTab": "新規タブ",
+    "tooltip": {
+      "split": "コンテンツを左右分割"
+    }
+  },
+  "mainArea": {
+    "tab": {
+      "content": "コンテンツ",
+      "terminal": "ターミナル"
+    },
+    "tooltip": {
+      "splitView": "Split View (Ctrl+\\)",
+      "disableSplit": "Split を解除"
+    },
+    "header": {
+      "content": "コンテンツ",
+      "terminal": "ターミナル"
+    }
+  },
+  "terminal": {
+    "tooltip": {
+      "newTab": "新しいターミナルを開く",
+      "split": "ターミナルを左右分割"
+    },
+    "error": {
+      "ptyStart": "PTY 起動エラー: {{error}}"
+    }
+  },
+  "pathPalette": {
+    "ariaLabel": "パス検索パレット",
+    "placeholder": "ファイルを検索してターミナルに挿入...",
+    "hint": "Esc で閉じる",
+    "noResults": "一致するファイルが見つかりません",
+    "count": "{{count}} 件",
+    "countLimit": "（上位100件）"
+  },
+  "shortcuts": {
+    "title": "キーボードショートカット",
+    "category": {
+      "pane": "ペイン切り替え",
+      "tab": "タブ操作",
+      "split": "分割表示",
+      "focus": "フォーカス移動",
+      "other": "その他"
+    },
+    "label": {
+      "togglePane": "コンテンツ↔ターミナル切り替え",
+      "newTerminalTab": "ターミナルタブを新規作成",
+      "closeTab": "タブを閉じる",
+      "prevTab": "前のタブへ移動",
+      "nthTab": "n 番目のタブへ移動",
+      "splitContent": "コンテンツ分割切り替え",
+      "splitTerminal": "ターミナル分割切り替え",
+      "parallelView": "コンテンツ/ターミナル並列表示",
+      "focusTree": "ツリーパネルへフォーカス",
+      "pathPalette": "パス検索パレット",
+      "shortcutList": "ショートカット一覧"
+    }
+  },
+  "settings": {
+    "title": "外観設定",
+    "section": {
+      "theme": "テーマ",
+      "content": "コンテンツ",
+      "terminal": "ターミナル",
+      "language": "言語"
+    },
+    "theme": {
+      "dark": "ダーク",
+      "light": "ライト",
+      "system": "システム"
+    },
+    "label": {
+      "font": "フォント",
+      "size": "サイズ"
+    },
+    "language": {
+      "ja": "日本語",
+      "en": "English"
+    },
+    "button": {
+      "apply": "適用"
+    }
+  },
+  "docStatus": {
+    "draft": "草稿",
+    "reviewing": "レビュー中",
+    "approved": "承認済"
+  }
+}

@@ -1,5 +1,6 @@
 import { useCallback, useState } from 'react'
 import { X, Columns2 } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import type { ContentTab } from '../../stores/contentStore'
 
 const DRAG_MIME = 'application/x-specprompt-tab'
@@ -27,6 +28,7 @@ export function ContentTabBar({
   splitEnabled,
   onToggleSplit,
 }: ContentTabBarProps) {
+  const { t } = useTranslation()
   const [isDragOver, setIsDragOver] = useState(false)
 
   const handleDragStart = useCallback((e: React.DragEvent, tabId: string) => {
@@ -78,7 +80,7 @@ export function ContentTabBar({
           const isActive = tab.id === activeTabId
           const label = tab.filePath
             ? (tab.filePath.split('/').pop() ?? tab.filePath)
-            : '新規タブ'
+            : t('content.newTab')
           return (
             <button
               key={tab.id}
@@ -113,7 +115,7 @@ export function ContentTabBar({
       {onToggleSplit && (
         <button
           onClick={onToggleSplit}
-          title="コンテンツを左右分割"
+          title={t('content.tooltip.split')}
           className="flex items-center justify-center w-7 h-7 rounded transition-colors outline-none hover:bg-white/10 flex-shrink-0 mr-1"
           style={{ color: splitEnabled ? 'var(--color-accent)' : 'var(--color-text-muted)' }}
         >

@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Terminal } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
 import "@xterm/xterm/css/xterm.css";
+import i18n from "../../i18n";
 import { tauriApi } from "../../lib/tauriApi";
 import { useTerminalStore } from "../../stores/terminalStore";
 import { useSettingsStore } from "../../stores/settingsStore";
@@ -115,7 +116,7 @@ export function TerminalPanel({ tabId, cwd = "/", isActive = true }: TerminalPan
         await attachOutputListener(id)
         syncPtySize()
       } catch (err) {
-        termRef.current?.write(`\r\nPTY 起動エラー: ${err}\r\n`);
+        termRef.current?.write(`\r\n${i18n.t('terminal.error.ptyStart', { error: err })}\r\n`);
       }
     }
 

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { FileText, Terminal, Columns2, X } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { useAppStore } from '../../stores/appStore'
 import { TerminalTabs } from '../TerminalPanel'
 import { ContentArea } from '../ContentView'
@@ -13,6 +14,7 @@ function SplitPaneHeader({
   icon: React.ReactNode
   onClose: () => void
 }) {
+  const { t } = useTranslation()
   return (
     <div
       className="flex items-center justify-between h-9 px-3 flex-shrink-0"
@@ -32,7 +34,7 @@ function SplitPaneHeader({
         onClick={onClose}
         className="flex items-center justify-center w-6 h-6 rounded transition-colors hover:bg-white/10 outline-none"
         style={{ color: 'var(--color-text-muted)' }}
-        title="Split を解除"
+        title={t('mainArea.tooltip.disableSplit')}
       >
         <X size={13} />
       </button>
@@ -41,6 +43,7 @@ function SplitPaneHeader({
 }
 
 export function MainArea() {
+  const { t } = useTranslation()
   const mainLayout = useAppStore((s) => s.mainLayout)
   const activeMainTab = useAppStore((s) => s.activeMainTab)
   const setActiveMainTab = useAppStore((s) => s.setActiveMainTab)
@@ -126,7 +129,7 @@ export function MainArea() {
                 }}
               >
                 {tab === 'content' ? <FileText size={14} /> : <Terminal size={14} />}
-                {tab === 'content' ? 'コンテンツ' : 'ターミナル'}
+                {tab === 'content' ? t('mainArea.tab.content') : t('mainArea.tab.terminal')}
               </button>
             ))}
           </>
@@ -134,7 +137,7 @@ export function MainArea() {
         <div className="ml-auto flex items-center pr-2">
           <button
             onClick={toggleMainLayout}
-            title="Split View (Ctrl+\)"
+            title={t('mainArea.tooltip.splitView')}
             className="flex items-center justify-center w-7 h-7 rounded transition-colors outline-none hover:bg-white/10"
             style={{ color: isSplit ? 'var(--color-accent)' : 'var(--color-text-muted)' }}
           >
@@ -156,7 +159,7 @@ export function MainArea() {
         >
           {isSplit && (
             <SplitPaneHeader
-              label="コンテンツ"
+              label={t('mainArea.header.content')}
               icon={<FileText size={14} />}
               onClose={toggleMainLayout}
             />
@@ -188,7 +191,7 @@ export function MainArea() {
         >
           {isSplit && (
             <SplitPaneHeader
-              label="ターミナル"
+              label={t('mainArea.header.terminal')}
               icon={<Terminal size={14} />}
               onClose={toggleMainLayout}
             />

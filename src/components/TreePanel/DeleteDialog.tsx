@@ -1,4 +1,5 @@
 import * as AlertDialog from '@radix-ui/react-alert-dialog'
+import { useTranslation } from 'react-i18next'
 
 interface DeleteDialogProps {
   open: boolean
@@ -9,6 +10,7 @@ interface DeleteDialogProps {
 }
 
 export function DeleteDialog({ open, name, isDir, onConfirm, onCancel }: DeleteDialogProps) {
+  const { t } = useTranslation()
   return (
     <AlertDialog.Root open={open} onOpenChange={(o) => !o && onCancel()}>
       <AlertDialog.Portal>
@@ -28,7 +30,7 @@ export function DeleteDialog({ open, name, isDir, onConfirm, onCancel }: DeleteD
             className="text-sm font-semibold mb-2"
             style={{ color: 'var(--color-text-primary)' }}
           >
-            {isDir ? 'フォルダを削除' : 'ファイルを削除'}
+            {isDir ? t('deleteDialog.titleFolder') : t('deleteDialog.titleFile')}
           </AlertDialog.Title>
 
           <AlertDialog.Description
@@ -36,9 +38,7 @@ export function DeleteDialog({ open, name, isDir, onConfirm, onCancel }: DeleteD
             style={{ color: 'var(--color-text-muted)' }}
           >
             <span style={{ color: 'var(--color-text-primary)' }}>{name}</span>
-            {isDir
-              ? ' を削除します。フォルダ内のファイルもすべて削除されます。この操作は取り消せません。'
-              : ' を削除します。この操作は取り消せません。'}
+            {isDir ? t('deleteDialog.descSuffixFolder') : t('deleteDialog.descSuffixFile')}
           </AlertDialog.Description>
 
           <div className="flex justify-end gap-2">
@@ -51,7 +51,7 @@ export function DeleteDialog({ open, name, isDir, onConfirm, onCancel }: DeleteD
                   color: 'var(--color-text-primary)',
                 }}
               >
-                キャンセル
+                {t('deleteDialog.cancel')}
               </button>
             </AlertDialog.Cancel>
             <AlertDialog.Action asChild>
@@ -59,7 +59,7 @@ export function DeleteDialog({ open, name, isDir, onConfirm, onCancel }: DeleteD
                 onClick={onConfirm}
                 className="text-xs px-3 h-7 rounded cursor-pointer bg-red-600 text-white"
               >
-                削除
+                {t('deleteDialog.confirm')}
               </button>
             </AlertDialog.Action>
           </div>

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Plus, X, Columns2 } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { useTerminalStore } from '../../stores/terminalStore'
 import { TerminalPanel } from './TerminalPanel'
 
@@ -10,6 +11,7 @@ interface TerminalPaneProps {
 }
 
 function TerminalPane({ pane }: TerminalPaneProps) {
+  const { t } = useTranslation()
   const group = useTerminalStore((s) => s[pane])
   const addTab = useTerminalStore((s) => s.addTab)
   const closeTab = useTerminalStore((s) => s.closeTab)
@@ -133,7 +135,7 @@ function TerminalPane({ pane }: TerminalPaneProps) {
           style={{ color: 'var(--color-text-muted)' }}
           onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--color-text-primary)')}
           onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--color-text-muted)')}
-          title="新しいターミナルを開く"
+          title={t('terminal.tooltip.newTab')}
         >
           <Plus size={14} />
         </button>
@@ -141,7 +143,7 @@ function TerminalPane({ pane }: TerminalPaneProps) {
         {pane === 'primary' && (
           <button
             onClick={toggleSplit}
-            title="ターミナルを左右分割"
+            title={t('terminal.tooltip.split')}
             className="flex items-center justify-center w-7 h-7 rounded transition-colors outline-none hover:bg-white/10 flex-shrink-0 mr-1"
             style={{ color: splitEnabled ? 'var(--color-accent)' : 'var(--color-text-muted)' }}
           >

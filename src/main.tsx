@@ -1,8 +1,10 @@
 import { Component, type ErrorInfo, type ReactNode } from "react";
 import { createRoot } from "react-dom/client";
 import "./index.css";
+import "./i18n";
 import App from "./App";
 import { useSettingsStore } from "./stores/settingsStore";
+import i18n from "./i18n";
 
 class ErrorBoundary extends Component<{ children: ReactNode }, { error: Error | null }> {
   state = { error: null }
@@ -21,6 +23,7 @@ class ErrorBoundary extends Component<{ children: ReactNode }, { error: Error | 
 }
 
 useSettingsStore.getState().loadSettings().catch(console.error)
+i18n.changeLanguage(useSettingsStore.getState().language)
 
 createRoot(document.getElementById("root")!).render(
   <ErrorBoundary>
