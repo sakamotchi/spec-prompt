@@ -1,5 +1,5 @@
 import * as RadixContextMenu from '@radix-ui/react-context-menu'
-import { FilePlus, FolderPlus, ExternalLink, Pencil, Trash2, Check, ChevronRight } from 'lucide-react'
+import { FilePlus, FolderPlus, ExternalLink, SquareArrowOutUpRight, Pencil, Trash2, Check, ChevronRight } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { useAppStore } from '../../stores/appStore'
 import { usePathInsertion } from '../../hooks/usePathInsertion'
@@ -20,6 +20,7 @@ interface TreeContextMenuProps {
   onRename: () => void
   onDelete: () => void
   onOpenInEditor: () => void
+  onOpenNewWindow?: () => void
 }
 
 const menuItemClass =
@@ -149,6 +150,7 @@ export function TreeContextMenu({
   onRename,
   onDelete,
   onOpenInEditor,
+  onOpenNewWindow,
 }: TreeContextMenuProps) {
   const { t } = useTranslation()
   const selectedFiles = useAppStore((s) => s.selectedFiles)
@@ -214,6 +216,13 @@ export function TreeContextMenu({
             icon={<ExternalLink size={12} />}
             label={isDir ? t('contextMenu.openInFinder') : t('contextMenu.openInEditor')}
           />
+          {isDir && onOpenNewWindow && (
+            <MenuItem
+              onSelect={onOpenNewWindow}
+              icon={<SquareArrowOutUpRight size={12} />}
+              label={t('contextMenu.openInNewWindow')}
+            />
+          )}
 
           {isMd && (
             <>

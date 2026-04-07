@@ -178,6 +178,10 @@ export const TreeNode = memo(function TreeNode({ node, depth }: TreeNodeProps) {
     tauriApi.openInEditor(node.path).catch(console.error)
   }
 
+  const handleOpenNewWindow = node.is_dir
+    ? () => { tauriApi.openNewWindow(node.path) }
+    : undefined
+
   const handleRenameCommit = async (newName: string): Promise<string | null> => {
     const dir = parentDir(node.path)
     const newPath = `${dir}/${newName}`
@@ -255,6 +259,7 @@ export const TreeNode = memo(function TreeNode({ node, depth }: TreeNodeProps) {
           onRename={handleRename}
           onDelete={() => setDeleteDialogOpen(true)}
           onOpenInEditor={handleOpenInEditor}
+          onOpenNewWindow={handleOpenNewWindow}
         >
           <div
             onClick={handleClick}
