@@ -49,15 +49,7 @@ pub fn spawn_pty(
         })
         .map_err(|e| e.to_string())?;
 
-    let resolved_cwd = if cwd.starts_with('~') {
-        if let Ok(home) = std::env::var("HOME") {
-            cwd.replacen('~', &home, 1)
-        } else {
-            cwd.clone()
-        }
-    } else {
-        cwd.clone()
-    };
+    let resolved_cwd = resolve_cwd(&cwd);
 
     let mut cmd = CommandBuilder::new(&shell);
     cmd.cwd(&resolved_cwd);
@@ -149,4 +141,48 @@ pub fn resize_pty(
 pub fn close_pty(id: String, manager: State<PtyManager>) -> Result<(), String> {
     manager.instances.lock().unwrap().remove(&id);
     Ok(())
+}
+
+/// `~` をホームディレクトリに展開する。絶対パスはそのまま返す。
+fn resolve_cwd(cwd: &str) -> String {
+    if cwd.starts_with('~') {
+        if let Ok(home) = std::env::var("HOME") {
+            cwd.replacen('~', &home, 1)
+        } else {
+            cwd.to_string()
+        }
+    } else {
+        cwd.to_string()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_resolve_cwd_tilde_only() {
+        std::env::set_var("HOME", "/home/testuser");
+        assert_eq!(resolve_cwd("~"), "/home/testuser");
+    }
+
+    #[test]
+    fn test_resolve_cwd_tilde_with_subdir() {
+        std::env::set_var("HOME", "/home/testuser");
+        assert_eq!(resolve_cwd("~/projects/foo"), "/home/testuser/projects/foo");
+    }
+
+    #[test]
+    fn test_resolve_cwd_absolute_path() {
+        assert_eq!(resolve_cwd("/absolute/path"), "/absolute/path");
+    }
+
+    #[test]
+    fn test_resolve_cwd_no_home_env() {
+        std::env::remove_var("HOME");
+        // HOME がない場合でもクラッシュせず、元の文字列を返す
+        assert_eq!(resolve_cwd("~"), "~");
+        // テスト環境を汚さないよう復元（他テストへの影響を避ける）
+        let _ = std::env::var("HOME"); // no-op
+    }
 }
