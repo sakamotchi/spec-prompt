@@ -10,7 +10,7 @@ import type { FileNode } from '../../lib/tauriApi'
 import { TreeContextMenu } from './ContextMenu'
 import { InlineInput } from './InlineInput'
 import { DeleteDialog } from './DeleteDialog'
-import { DOC_STATUS_COLOR, type DocStatus } from '../../lib/frontmatter'
+import { DOC_STATUS_COLOR } from '../../lib/frontmatter'
 
 const EXT_ICON_MAP: Record<string, string> = {
   md:   'vscode-icons:file-type-markdown',
@@ -47,11 +47,14 @@ function parentDir(path: string): string {
 
 export const TreeNode = memo(function TreeNode({ node, depth }: TreeNodeProps) {
   const { t } = useTranslation()
-  const selectedFile = useAppStore((s) => s.selectedFile)
-  const expandedDirs = useAppStore((s) => s.expandedDirs)
-  const selectedFiles = useAppStore((s) => s.selectedFiles)
-  const editingState = useAppStore((s) => s.editingState)
-  const creatingState = useAppStore((s) => s.creatingState)
+  // ノード固有の値だけ購読することで、他ノードの状態変化による不要な再レンダリングを防ぐ
+  const isSelected = useAppStore((s) => s.selectedFile === node.path)
+  const isExpanded = useAppStore((s) => s.expandedDirs.has(node.path))
+  const isMultiSelected = useAppStore((s) => s.selectedFiles.includes(node.path))
+  const isEditing = useAppStore((s) => s.editingState?.path === node.path)
+  const showCreatingInput = useAppStore((s) => node.is_dir && s.creatingState?.parentPath === node.path)
+  const docStatus = useAppStore((s) => s.docStatuses[node.path] ?? null)
+
   const toggleExpandedDir = useAppStore((s) => s.toggleExpandedDir)
   const setSelectedFile = useAppStore((s) => s.setSelectedFile)
   const updateDirChildren = useAppStore((s) => s.updateDirChildren)
@@ -60,20 +63,15 @@ export const TreeNode = memo(function TreeNode({ node, depth }: TreeNodeProps) {
   const setEditingState = useAppStore((s) => s.setEditingState)
   const setCreatingState = useAppStore((s) => s.setCreatingState)
   const setActiveMainTab = useAppStore((s) => s.setActiveMainTab)
+  const loadDocStatuses = useAppStore((s) => s.loadDocStatuses)
   const openFile = useContentStore((s) => s.openFile)
   const closeTabByPath = useContentStore((s) => s.closeTabByPath)
   const renameTabPath = useContentStore((s) => s.renameTabPath)
-  const docStatuses = useAppStore((s) => s.docStatuses)
-  const loadDocStatuses = useAppStore((s) => s.loadDocStatuses)
   const { insertPath } = usePathInsertion()
 
   const [isLoadingChildren, setIsLoadingChildren] = useState(false)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
 
-  const isExpanded = expandedDirs.has(node.path)
-  const isSelected = selectedFile === node.path
-  const isMultiSelected = selectedFiles.includes(node.path)
-  const isEditing = editingState?.path === node.path
   const indent = depth * 16
 
   const reloadDir = useCallback(
@@ -144,7 +142,7 @@ export const TreeNode = memo(function TreeNode({ node, depth }: TreeNodeProps) {
 
   const ensureExpanded = useCallback(
     (dirPath: string) => {
-      if (!expandedDirs.has(dirPath)) {
+      if (!useAppStore.getState().expandedDirs.has(dirPath)) {
         tauriApi
           .readDir(dirPath)
           .then((children) => {
@@ -154,7 +152,7 @@ export const TreeNode = memo(function TreeNode({ node, depth }: TreeNodeProps) {
           .catch(console.error)
       }
     },
-    [expandedDirs, updateDirChildren, toggleExpandedDir],
+    [updateDirChildren, toggleExpandedDir],
   )
 
   const handleNewFile = () => {
@@ -230,7 +228,6 @@ export const TreeNode = memo(function TreeNode({ node, depth }: TreeNodeProps) {
 
   // isExpanded を要求しない: 閉じたフォルダでも即座に入力欄を表示し、
   // ensureExpanded が非同期で展開したときに子ノードが上に追加される
-  const showCreatingInput = node.is_dir && creatingState?.parentPath === node.path
 
   const FileIcon = () => {
     if (node.is_dir) {
@@ -294,12 +291,11 @@ export const TreeNode = memo(function TreeNode({ node, depth }: TreeNodeProps) {
               <>
                 <span className="truncate flex-1">{node.name}</span>
                 {!node.is_dir && /\.(md|mdx)$/i.test(node.name) && (() => {
-                  const status: DocStatus | null | undefined = docStatuses[node.path]
-                  return status ? (
+                  return docStatus ? (
                     <span
                       className="shrink-0 w-1.5 h-1.5 rounded-full ml-1"
-                      style={{ background: DOC_STATUS_COLOR[status] }}
-                      title={status}
+                      style={{ background: DOC_STATUS_COLOR[docStatus] }}
+                      title={docStatus}
                     />
                   ) : null
                 })()}
