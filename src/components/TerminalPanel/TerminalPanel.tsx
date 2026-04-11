@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Terminal } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
+import { Unicode11Addon } from "@xterm/addon-unicode11";
 import "@xterm/xterm/css/xterm.css";
 import i18n from "../../i18n";
 import { tauriApi } from "../../lib/tauriApi";
@@ -227,9 +228,13 @@ export function TerminalPanel({ tabId, cwd = "/", isActive = true }: TerminalPan
         fontSize: terminalFontSize,
         fontFamily: toFontFamilyCSS(terminalFontFamily),
         theme: buildXtermTheme(isDark),
+        allowProposedApi: true,
       });
 
       fitAddon = new FitAddon();
+      const unicode11Addon = new Unicode11Addon();
+      term.loadAddon(unicode11Addon);
+      term.unicode.activeVersion = '11';
       term.loadAddon(fitAddon);
       term.open(containerRef.current);
 

@@ -94,7 +94,7 @@ export const TreeNode = memo(function TreeNode({ node, depth }: TreeNodeProps) {
       e.preventDefault()
       if (e.shiftKey) {
         toggleFileSelection(node.path)
-      } else if (selectedFiles.length > 0) {
+      } else if (useAppStore.getState().selectedFiles.length > 0) {
         toggleFileSelection(node.path)
       } else {
         insertPath(node.path)
