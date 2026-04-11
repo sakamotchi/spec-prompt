@@ -121,7 +121,7 @@ function TerminalPane({ pane }: TerminalPaneProps) {
                       e.stopPropagation()
                       closeTab(tab.id, pane)
                     }}
-                    className="flex items-center justify-center w-4 h-4 rounded opacity-0 group-hover:opacity-100 transition-opacity hover:bg-white/10"
+                    className="flex items-center justify-center w-4 h-4 rounded opacity-0 group-hover:opacity-100 transition-opacity hover:bg-white/10 cursor-default"
                   >
                     <X size={10} />
                   </span>
