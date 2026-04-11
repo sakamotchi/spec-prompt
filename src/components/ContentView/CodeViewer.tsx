@@ -29,6 +29,7 @@ function getHighlighter() {
 
 export function CodeViewer({ content, filePath }: { content: string; filePath: string }) {
   const [html, setHtml] = useState('')
+  const [lineCount, setLineCount] = useState(0)
   const contentFontFamily = useSettingsStore((s) => s.contentFontFamily)
   const contentFontSize = useSettingsStore((s) => s.contentFontSize)
 
@@ -42,20 +43,54 @@ export function CodeViewer({ content, filePath }: { content: string; filePath: s
         theme: 'github-dark',
       })
       setHtml(result)
+      setLineCount((result.match(/class="line"/g) ?? []).length)
     })
   }, [content, filePath])
 
   if (!html) return null
 
+  const fontFamily = toFontFamilyCSS(contentFontFamily, 'sans-serif')
+  const fontSize = `${contentFontSize}px`
+
   return (
     <div
-      className="h-full overflow-auto text-sm"
+      className="h-full overflow-auto flex text-sm"
       style={{
         background: 'var(--color-bg-base)',
-        ['--content-font-family' as string]: toFontFamilyCSS(contentFontFamily, 'sans-serif'),
-        ['--content-font-size' as string]: `${contentFontSize}px`,
+        ['--content-font-family' as string]: fontFamily,
+        ['--content-font-size' as string]: fontSize,
       } as React.CSSProperties}
-      dangerouslySetInnerHTML={{ __html: html }}
-    />
+    >
+      {/* 行番号列: 選択範囲から切り離した別要素として描画 */}
+      <div
+        aria-hidden
+        style={{
+          flexShrink: 0,
+          width: '3.5em',
+          padding: '1em 0.5em 1em 1em',
+          textAlign: 'right',
+          lineHeight: 1.6,
+          fontSize,
+          fontFamily,
+          color: '#555',
+          userSelect: 'none',
+          WebkitUserSelect: 'none',
+          pointerEvents: 'none',
+          position: 'sticky',
+          left: 0,
+          background: 'var(--color-bg-base)',
+        }}
+      >
+        {Array.from({ length: lineCount }, (_, i) => (
+          <div key={i}>{i + 1}</div>
+        ))}
+      </div>
+
+      {/* コード本体 */}
+      <div
+        style={{ flex: 1 }}
+        dangerouslySetInnerHTML={{ __html: html }}
+      />
+    </div>
   )
 }
