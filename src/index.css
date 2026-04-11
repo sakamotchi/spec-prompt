@@ -135,10 +135,26 @@ body,
 /* CodeViewer: Shiki が生成する要素のスタイル調整 */
 .shiki {
   min-height: 100%;
-  padding: 1em;
+  padding: 1em 1em 1em 0;
   font-family: var(--content-font-family, system-ui, sans-serif);
   font-size: var(--content-font-size, 16px);
   line-height: 1.6;
+}
+
+/* 行番号: CSS counter で実装 */
+.shiki code {
+  counter-reset: line;
+}
+
+.shiki .line::before {
+  counter-increment: line;
+  content: counter(line);
+  display: inline-block;
+  width: 3em;
+  margin-right: 1.5em;
+  text-align: right;
+  color: #555;
+  user-select: none;
 }
 
 /* Mermaid ダイアグラム */
