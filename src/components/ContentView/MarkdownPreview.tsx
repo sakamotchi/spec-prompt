@@ -2,12 +2,24 @@ import { useEffect, useRef, useState } from 'react'
 import { renderMarkdown } from '../../lib/markdown'
 import { openUrl } from '@tauri-apps/plugin-opener'
 import { useSettingsStore } from '../../stores/settingsStore'
+import { useContentStore } from '../../stores/contentStore'
 import { toFontFamilyCSS } from '../../lib/fontFamily'
 
-export function MarkdownPreview({ content }: { content: string }) {
+function resolveRelativePath(basePath: string, href: string): string {
+  const parts = basePath.split('/')
+  parts.pop() // ファイル名を除いてディレクトリ部分だけにする
+  for (const segment of href.split('/')) {
+    if (segment === '..') parts.pop()
+    else if (segment !== '.') parts.push(segment)
+  }
+  return parts.join('/')
+}
+
+export function MarkdownPreview({ content, filePath }: { content: string; filePath?: string }) {
   const [html, setHtml] = useState('')
   const containerRef = useRef<HTMLDivElement>(null)
 
+  const openFile = useContentStore((s) => s.openFile)
   const theme = useSettingsStore((s) => s.theme)
   const contentFontFamily = useSettingsStore((s) => s.contentFontFamily)
   const contentFontSize = useSettingsStore((s) => s.contentFontSize)
@@ -45,7 +57,11 @@ export function MarkdownPreview({ content }: { content: string }) {
     })
   }, [html, resolvedTheme])
 
-  // 外部リンクをデフォルトブラウザで開く
+  // リンクのクリックを制御する
+  // - http/https → デフォルトブラウザで開く
+  // - #hash     → ページ内スクロール
+  // - 相対パス  → アプリ内タブで開く
+  // それ以外も含めて必ず preventDefault し WebView ナビゲーションを防ぐ
   useEffect(() => {
     const container = containerRef.current
     if (!container) return
@@ -53,14 +69,19 @@ export function MarkdownPreview({ content }: { content: string }) {
       const a = (e.target as HTMLElement).closest('a')
       if (!a) return
       const href = a.getAttribute('href')
-      if (href && (href.startsWith('http://') || href.startsWith('https://'))) {
-        e.preventDefault()
+      if (!href) return
+      e.preventDefault()
+      if (href.startsWith('http://') || href.startsWith('https://')) {
         openUrl(href)
+      } else if (href.startsWith('#')) {
+        container.querySelector(decodeURIComponent(href))?.scrollIntoView({ behavior: 'smooth' })
+      } else if (filePath) {
+        openFile(resolveRelativePath(filePath, href))
       }
     }
     container.addEventListener('click', onClick)
     return () => container.removeEventListener('click', onClick)
-  }, [html])
+  }, [html, filePath, openFile])
 
   return (
     <div
