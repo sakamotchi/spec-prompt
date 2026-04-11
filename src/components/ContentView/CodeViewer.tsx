@@ -20,11 +20,18 @@ let highlighterPromise: ReturnType<typeof createHighlighter> | null = null
 function getHighlighter() {
   if (!highlighterPromise) {
     highlighterPromise = createHighlighter({
-      themes: ['github-dark'],
+      themes: ['github-dark', 'github-light'],
       langs: Object.values(EXT_TO_LANG).filter((v, i, a) => a.indexOf(v) === i),
     })
   }
   return highlighterPromise
+}
+
+function resolveTheme(theme: string): 'dark' | 'light' {
+  if (theme === 'system') {
+    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
+  }
+  return theme as 'dark' | 'light'
 }
 
 export function CodeViewer({ content, filePath }: { content: string; filePath: string }) {
@@ -32,20 +39,23 @@ export function CodeViewer({ content, filePath }: { content: string; filePath: s
   const [lineCount, setLineCount] = useState(0)
   const contentFontFamily = useSettingsStore((s) => s.contentFontFamily)
   const contentFontSize = useSettingsStore((s) => s.contentFontSize)
+  const theme = useSettingsStore((s) => s.theme)
+  const isDark = resolveTheme(theme) === 'dark'
 
   useEffect(() => {
     const ext = filePath.split('.').pop()?.toLowerCase() ?? ''
     const lang = EXT_TO_LANG[ext] ?? 'text'
+    const shikiTheme = isDark ? 'github-dark' : 'github-light'
 
     getHighlighter().then((highlighter) => {
       const result = highlighter.codeToHtml(content, {
         lang,
-        theme: 'github-dark',
+        theme: shikiTheme,
       })
       setHtml(result)
       setLineCount((result.match(/class="line"/g) ?? []).length)
     })
-  }, [content, filePath])
+  }, [content, filePath, isDark])
 
   if (!html) return null
 
@@ -72,7 +82,7 @@ export function CodeViewer({ content, filePath }: { content: string; filePath: s
           lineHeight: 1.6,
           fontSize,
           fontFamily,
-          color: '#555',
+          color: isDark ? '#555' : '#999',
           userSelect: 'none',
           WebkitUserSelect: 'none',
           pointerEvents: 'none',
