@@ -54,6 +54,21 @@ pub fn spawn_pty(
     let mut cmd = CommandBuilder::new(&shell);
     cmd.cwd(&resolved_cwd);
 
+    // プロダクションビルドでは .app が LaunchServices 経由で起動されるため、
+    // シェルの環境変数が引き継がれない。マルチバイト文字の文字化けを防ぐため
+    // ロケール関連の環境変数を明示的に設定する。
+    let locale = std::env::var("LANG").unwrap_or_else(|_| "ja_JP.UTF-8".to_string());
+    cmd.env("LANG", &locale);
+    cmd.env("LC_ALL", &locale);
+    cmd.env("LC_CTYPE", &locale);
+
+    // HOME, PATH など基本的な変数もプロダクションビルドで欠落しうるため継承する
+    for key in &["HOME", "PATH", "TERM", "USER", "SHELL"] {
+        if let Ok(val) = std::env::var(key) {
+            cmd.env(key, val);
+        }
+    }
+
     let _child = pair
         .slave
         .spawn_command(cmd)
