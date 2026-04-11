@@ -59,6 +59,7 @@ export const TreeNode = memo(function TreeNode({ node, depth }: TreeNodeProps) {
   const clearFileSelection = useAppStore((s) => s.clearFileSelection)
   const setEditingState = useAppStore((s) => s.setEditingState)
   const setCreatingState = useAppStore((s) => s.setCreatingState)
+  const setActiveMainTab = useAppStore((s) => s.setActiveMainTab)
   const openFile = useContentStore((s) => s.openFile)
   const closeTabByPath = useContentStore((s) => s.closeTabByPath)
   const renameTabPath = useContentStore((s) => s.renameTabPath)
@@ -126,6 +127,7 @@ export const TreeNode = memo(function TreeNode({ node, depth }: TreeNodeProps) {
     } else {
       setSelectedFile(node.path)
       openFile(node.path)
+      setActiveMainTab('content')
       if (/\.(md|mdx)$/i.test(node.path)) {
         loadDocStatuses([node.path])
       }
