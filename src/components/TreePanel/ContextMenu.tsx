@@ -1,5 +1,5 @@
 import * as RadixContextMenu from '@radix-ui/react-context-menu'
-import { FilePlus, FolderPlus, ExternalLink, SquareArrowOutUpRight, Pencil, Trash2, Check, ChevronRight } from 'lucide-react'
+import { FilePlus, FolderPlus, ExternalLink, SquareArrowOutUpRight, Pencil, Trash2, Check, ChevronRight, Copy } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { useAppStore } from '../../stores/appStore'
 import { usePathInsertion } from '../../hooks/usePathInsertion'
@@ -153,10 +153,17 @@ export function TreeContextMenu({
   onOpenNewWindow,
 }: TreeContextMenuProps) {
   const { t } = useTranslation()
+  const projectRoot = useAppStore((s) => s.projectRoot)
   const selectedFiles = useAppStore((s) => s.selectedFiles)
   const { insertPath } = usePathInsertion()
 
   const isMd = !isDir && /\.(md|mdx)$/i.test(path)
+
+  const getRelativePath = () => {
+    if (!projectRoot) return path
+    const prefix = projectRoot.endsWith('/') ? projectRoot : projectRoot + '/'
+    return path.startsWith(prefix) ? path.slice(prefix.length) : path
+  }
 
   const handleInsertPath = () => {
     if (selectedFiles.length > 1 && selectedFiles.includes(path)) {
@@ -194,6 +201,20 @@ export function TreeContextMenu({
               label={t('contextMenu.insertAll', { count: selectedFiles.length })}
             />
           )}
+
+          <Separator />
+
+          {/* パスをコピー */}
+          <MenuItem
+            onSelect={() => navigator.clipboard.writeText(getRelativePath())}
+            icon={<Copy size={12} />}
+            label={t('contextMenu.copyRelativePath')}
+          />
+          <MenuItem
+            onSelect={() => navigator.clipboard.writeText(path)}
+            icon={<Copy size={12} />}
+            label={t('contextMenu.copyAbsolutePath')}
+          />
 
           <Separator />
 

@@ -21,6 +21,8 @@
     "openInFinder": "Finderで開く",
     "openInEditor": "外部エディタで開く",
     "openInNewWindow": "新規ウィンドウで開く",
+    "copyRelativePath": "相対パスをコピー",
+    "copyAbsolutePath": "絶対パスをコピー",
     "rename": "リネーム",
     "delete": "削除"
   },

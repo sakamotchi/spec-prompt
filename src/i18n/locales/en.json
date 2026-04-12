@@ -21,6 +21,8 @@
     "openInFinder": "Reveal in Finder",
     "openInEditor": "Open in External Editor",
     "openInNewWindow": "Open in New Window",
+    "copyRelativePath": "Copy Relative Path",
+    "copyAbsolutePath": "Copy Absolute Path",
     "rename": "Rename",
     "delete": "Delete"
   },
