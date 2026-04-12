@@ -24,10 +24,21 @@
   box-sizing: border-box;
 }
 
-/* xterm.js DOM レンダラーのカーニング・字間を明示的に無効化 */
-.xterm-rows span {
-  font-kerning: none;
-  letter-spacing: 0;
+/* スクロールバー（WebKit / WKWebView） */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-text-muted);
+  border-radius: 3px;
+  opacity: 0.5;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-text-primary);
 }
 
 body {

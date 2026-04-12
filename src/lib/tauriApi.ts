@@ -15,6 +15,42 @@ export interface PtyOutput {
   data: string;
 }
 
+// terminal-cells イベントの型定義（Rust 側の TerminalCellsPayload と対応）
+export interface TerminalCellsPayload {
+  id: string;
+  cells: CellData[];
+  cursor: { row: number; col: number };
+  /** 現在のスクロール行数（0=末尾、正=上方向にスクロール済み） */
+  scroll_offset: number;
+  /** スクロールバック履歴の総行数 */
+  scrollback_len: number;
+}
+
+export interface CellData {
+  row: number;
+  col: number;
+  ch: string;
+  wide: boolean;
+  fg: ColorData;
+  bg: ColorData;
+  flags: CellFlags;
+}
+
+export type ColorData =
+  | { type: 'Named'; value: number }
+  | { type: 'Indexed'; value: number }
+  | { type: 'Rgb'; value: { r: number; g: number; b: number } }
+  | { type: 'Default'; value: null };
+
+export interface CellFlags {
+  bold: boolean;
+  italic: boolean;
+  underline: boolean;
+  strikeout: boolean;
+  inverse: boolean;
+  dim: boolean;
+}
+
 export const tauriApi = {
   // PTY
   spawnPty: (shell: string, cwd: string): Promise<string> =>
@@ -30,6 +66,15 @@ export const tauriApi = {
 
   onPtyOutput: (callback: (output: PtyOutput) => void): Promise<UnlistenFn> =>
     listen<PtyOutput>("pty-output", (event) => callback(event.payload)),
+
+  resizeTerminal: (id: string, cols: number, rows: number): Promise<void> =>
+    invoke("resize_terminal", { id, cols, rows }),
+
+  scrollTerminal: (id: string, delta: number): Promise<void> =>
+    invoke("scroll_terminal", { id, delta }),
+
+  onTerminalCells: (callback: (payload: TerminalCellsPayload) => void): Promise<UnlistenFn> =>
+    listen<TerminalCellsPayload>("terminal-cells", (event) => callback(event.payload)),
 
   // Filesystem
   readDir: (path: string): Promise<FileNode[]> =>

@@ -1,4 +1,5 @@
 mod commands;
+mod terminal;
 
 use commands::config::{add_recent_project, get_appearance, get_recent_projects, save_appearance};
 use commands::fonts::load_font_bytes;
@@ -6,7 +7,8 @@ use commands::filesystem::{
     create_dir, create_file, delete_path, open_in_editor, read_dir, read_file, rename_path,
     write_file,
 };
-use commands::pty::{close_pty, resize_pty, spawn_pty, write_pty, PtyManager};
+use commands::pty::{close_pty, resize_pty, resize_terminal, scroll_terminal, spawn_pty, write_pty, PtyManager};
+use terminal::TerminalManager;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -15,10 +17,13 @@ pub fn run() {
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_dialog::init())
         .manage(PtyManager::new())
+        .manage(TerminalManager::new())
         .invoke_handler(tauri::generate_handler![
             spawn_pty,
             write_pty,
             resize_pty,
+            resize_terminal,
+            scroll_terminal,
             close_pty,
             read_dir,
             read_file,
