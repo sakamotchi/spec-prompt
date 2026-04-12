@@ -286,6 +286,9 @@ export function TerminalRenderer({ ptyId, fontFamily, fontSize, theme }: Termina
   }
 
   // ---- Canvas サイズ設定と cellSize 計算 ----
+  // resizeTerminal IPC のデバウンスタイマー
+  const resizeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
   const setupCanvas = useCallback(() => {
     const container = containerRef.current
     const canvas = canvasRef.current
@@ -325,17 +328,24 @@ export function TerminalRenderer({ ptyId, fontFamily, fontSize, theme }: Termina
     colsRef.current = cols
     rowsRef.current = rows
 
-    if (sizeChanged) {
-      const id = ptyIdRef.current
-      if (id) tauriApi.resizeTerminal(id, cols, rows).catch(console.error)
-    }
-
-    // サイズ変更後、キャッシュしたペイロードで再描画
+    // キャッシュしたペイロードで即座に再描画（Canvas サイズだけ合わせる）
     const last = lastPayloadRef.current
     if (last) {
       drawCells(canvas, last.cells)
       drawCursor(cursorVisibleRef.current)
       updateScrollbar()
+    }
+
+    // resizeTerminal IPC はデバウンス（150ms）で遅延実行する。
+    // ウィンドウリサイズ中は ResizeObserver が高頻度で発火するため、
+    // 毎回 Rust 側で全セル再計算 → IPC 送信するとフレーム落ちの原因になる。
+    if (sizeChanged) {
+      if (resizeTimerRef.current) clearTimeout(resizeTimerRef.current)
+      resizeTimerRef.current = setTimeout(() => {
+        resizeTimerRef.current = null
+        const id = ptyIdRef.current
+        if (id) tauriApi.resizeTerminal(id, cols, rows).catch(console.error)
+      }, 150)
     }
   }, [drawCells, drawCursor, updateScrollbar])
 
