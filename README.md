@@ -35,7 +35,7 @@ SpecPrompt pairs a Markdown previewer with an integrated terminal so you can ref
 | Styling | Tailwind CSS v4 |
 | Markdown rendering | unified (remark + rehype) |
 | Syntax highlighting | Shiki |
-| Terminal emulator | xterm.js |
+| Terminal emulator | alacritty-terminal (Rust) + Canvas 2D renderer |
 | PTY management | portable-pty (Rust crate) |
 | File watching | tauri-plugin-fs |
 | State management | Zustand + persist middleware |

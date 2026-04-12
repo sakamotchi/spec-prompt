@@ -35,7 +35,7 @@ SpecPrompt はマークダウンプレビューと統合ターミナルを一体
 | スタイリング | Tailwind CSS v4 |
 | MDレンダリング | unified（remark + rehype） |
 | コードハイライト | Shiki |
-| ターミナルエミュレータ | xterm.js |
+| ターミナルエミュレータ | alacritty-terminal（Rustクレート）+ Canvas 2D レンダラー |
 | PTY管理 | portable-pty（Rustクレート） |
 | ファイル監視 | tauri-plugin-fs |
 | 状態管理 | Zustand + persist middleware |
