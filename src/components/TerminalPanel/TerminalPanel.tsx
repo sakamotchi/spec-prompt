@@ -8,6 +8,9 @@ import { tauriApi } from "../../lib/tauriApi";
 import { useTerminalStore } from "../../stores/terminalStore";
 import { useSettingsStore } from "../../stores/settingsStore";
 import { useAppStore } from "../../stores/appStore";
+import { TerminalRenderer } from "./TerminalRenderer";
+
+const USE_CANVAS_RENDERER = import.meta.env.VITE_USE_CANVAS_RENDERER === 'true'
 
 interface TerminalPanelProps {
   tabId: string
@@ -63,9 +66,12 @@ export function TerminalPanel({ tabId, cwd = "/", isActive = true }: TerminalPan
   const mainLayout = useAppStore((s) => s.mainLayout)
   // フォント変更後にターミナルペインへ切り替えたとき再作成を強制するためのキー
   const [recreateKey, setRecreateKey] = useState(0)
+  // Canvas レンダラー用: PTY ID を state として保持（TerminalRenderer へ渡すため）
+  const [rendererPtyId, setRendererPtyId] = useState<string | null>(null)
 
   useEffect(() => {
-    if (!containerRef.current) return;
+    // Canvas レンダラーモードでは containerRef は使わないので guard をスキップする
+    if (!USE_CANVAS_RENDERER && !containerRef.current) return;
 
     const getTab = () => {
       const s = useTerminalStore.getState()
@@ -100,7 +106,8 @@ export function TerminalPanel({ tabId, cwd = "/", isActive = true }: TerminalPan
 
     const setupPty = async () => {
       if (activePtyId) {
-        await attachOutputListener(activePtyId)
+        setRendererPtyId(activePtyId)
+        if (!USE_CANVAS_RENDERER) await attachOutputListener(activePtyId)
         syncPtySize()
         return
       }
@@ -114,7 +121,8 @@ export function TerminalPanel({ tabId, cwd = "/", isActive = true }: TerminalPan
         activePtyId = id
         ptyIdRef.current = id
         useTerminalStore.getState().setPtyId(tabId, id)
-        await attachOutputListener(id)
+        setRendererPtyId(id)
+        if (!USE_CANVAS_RENDERER) await attachOutputListener(id)
         syncPtySize()
       } catch (err) {
         termRef.current?.write(`\r\n${i18n.t('terminal.error.ptyStart', { error: err })}\r\n`);
@@ -122,6 +130,22 @@ export function TerminalPanel({ tabId, cwd = "/", isActive = true }: TerminalPan
     }
 
     setupPty().catch(console.error)
+
+    // Canvas レンダラーモードでは xterm.js 用の ResizeObserver は不要
+    if (USE_CANVAS_RENDERER) {
+      return () => {
+        cancelled = true
+        unlistenFn?.()
+        const s = useTerminalStore.getState()
+        const tabExists =
+          s.primary.tabs.some((t) => t.id === tabId) ||
+          s.secondary.tabs.some((t) => t.id === tabId)
+        if (!tabExists && activePtyId) {
+          tauriApi.closePty(activePtyId).catch(console.error)
+          ptyIdRef.current = null
+        }
+      }
+    }
 
     const resizeObserver = new ResizeObserver(() => {
       const w = containerRef.current?.offsetWidth ?? 0
@@ -182,7 +206,7 @@ export function TerminalPanel({ tabId, cwd = "/", isActive = true }: TerminalPan
         t.refresh(0, t.rows - 1)
       })
     });
-    resizeObserver.observe(containerRef.current);
+    if (containerRef.current) resizeObserver.observe(containerRef.current);
 
     return () => {
       cancelled = true
@@ -458,6 +482,18 @@ export function TerminalPanel({ tabId, cwd = "/", isActive = true }: TerminalPan
       });
     }
   }, [isActive]);
+
+  if (USE_CANVAS_RENDERER) {
+    return (
+      <TerminalRenderer
+        tabId={tabId}
+        ptyId={rendererPtyId}
+        fontFamily={terminalFontFamily}
+        fontSize={terminalFontSize}
+        theme={resolvedTheme}
+      />
+    )
+  }
 
   return <div ref={containerRef} className="w-full h-full" />;
 }

@@ -18,12 +18,15 @@ pub struct CellData {
 #[derive(Debug, Clone, Serialize)]
 #[serde(tag = "type", content = "value")]
 pub enum ColorData {
-    /// ANSI 16色（NamedColor as u8）
+    /// ANSI 16色（NamedColor 0-15）
     Named(u8),
     /// xterm 256色
     Indexed(u8),
     /// トゥルーカラー
     Rgb { r: u8, g: u8, b: u8 },
+    /// ターミナルのデフォルト色（Foreground=256, Background=257 等）
+    /// フロントエンドがテーマのデフォルト fg/bg で描画する
+    Default,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -38,7 +41,17 @@ pub struct CellFlags {
 
 pub fn color_to_data(color: Color) -> ColorData {
     match color {
-        Color::Named(n) => ColorData::Named(n as u8),
+        Color::Named(n) => {
+            let v = n as usize;
+            if v < 16 {
+                // ANSI 16色（0-15）
+                ColorData::Named(v as u8)
+            } else {
+                // Foreground=256, Background=257, Cursor=258 などセマンティック色
+                // → フロントエンドがテーマのデフォルト色で描画する
+                ColorData::Default
+            }
+        }
         Color::Indexed(i) => ColorData::Indexed(i),
         Color::Spec(rgb) => ColorData::Rgb { r: rgb.r, g: rgb.g, b: rgb.b },
     }
