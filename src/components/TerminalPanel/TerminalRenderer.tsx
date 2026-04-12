@@ -4,18 +4,48 @@ import { tauriApi } from '../../lib/tauriApi'
 import { resolveColor, DEFAULT_BG } from './colors'
 import { useTerminalInput } from './useTerminalInput'
 
+interface CellPos { row: number; col: number }
+interface SelectionRange { start: CellPos; end: CellPos }
+
 interface TerminalRendererProps {
-  tabId: string
   ptyId: string | null
   fontFamily: string
   fontSize: number
   theme: 'dark' | 'light'
 }
 
-export function TerminalRenderer({ tabId: _tabId, ptyId, fontFamily, fontSize, theme }: TerminalRendererProps) {
+function pixelToCell(cssX: number, cssY: number, cw: number, ch: number, dpr: number): CellPos {
+  return {
+    col: Math.floor(cssX * dpr / cw),
+    row: Math.floor(cssY * dpr / ch),
+  }
+}
+
+function normalizeSelection(sel: SelectionRange): [CellPos, CellPos] {
+  const { start, end } = sel
+  const startBefore = start.row < end.row || (start.row === end.row && start.col <= end.col)
+  return startBefore ? [start, end] : [end, start]
+}
+
+function extractSelectedText(cells: CellData[], sel: SelectionRange, cols: number): string {
+  const [from, to] = normalizeSelection(sel)
+  const lines: string[] = []
+  for (let r = from.row; r <= to.row; r++) {
+    const startCol = r === from.row ? from.col : 0
+    const endCol   = r === to.row   ? to.col   : cols
+    const rowCells = cells
+      .filter(c => c.row === r && c.col >= startCol && c.col < endCol)
+      .sort((a, b) => a.col - b.col)
+    lines.push(rowCells.map(c => c.ch).join('').trimEnd())
+  }
+  return lines.join('\n')
+}
+
+export function TerminalRenderer({ ptyId, fontFamily, fontSize, theme }: TerminalRendererProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const cursorCanvasRef = useRef<HTMLCanvasElement>(null)
+  const scrollbarRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
 
   // ミュータブルな状態は ref で管理（再レンダリング不要）
@@ -26,6 +56,14 @@ export function TerminalRenderer({ tabId: _tabId, ptyId, fontFamily, fontSize, t
   const cursorRef = useRef({ row: 0, col: 0 })
   const cursorVisibleRef = useRef(true)
   const lastPayloadRef = useRef<TerminalCellsPayload | null>(null)
+
+  // スクロールバック
+  const scrollOffsetRef = useRef(0)
+  const scrollbackLenRef = useRef(0)
+
+  // テキスト選択
+  const selectionRef = useRef<SelectionRange | null>(null)
+  const isDraggingRef = useRef(false)
 
   // prop を ref に同期（コールバック内で最新値を参照するため）
   const ptyIdRef = useRef(ptyId)
@@ -64,7 +102,29 @@ export function TerminalRenderer({ tabId: _tabId, ptyId, fontFamily, fontSize, t
     el.style.height = `${ch / dpr}px`
   }, [])
 
-  // ---- カーソル Canvas への描画（変換中テキストも描画） ----
+  // スクロールバー DOM を直接更新（React 再レンダリング不要）
+  const updateScrollbar = useCallback(() => {
+    const el = scrollbarRef.current
+    const container = containerRef.current
+    if (!el || !container) return
+    const offset = scrollOffsetRef.current
+    const len = scrollbackLenRef.current
+    if (len === 0) {
+      el.style.opacity = '0'
+      return
+    }
+    el.style.opacity = '1'
+    el.style.background = themeRef.current === 'dark' ? 'rgba(255,255,255,0.4)' : 'rgba(0,0,0,0.3)'
+    const containerHeight = container.offsetHeight
+    const rows = rowsRef.current
+    const ratio = rows / (rows + len)
+    const barH = Math.max(20, containerHeight * ratio)
+    const barTop = (containerHeight - barH) * (1 - offset / len)
+    el.style.height = `${barH}px`
+    el.style.top = `${barTop}px`
+  }, [])
+
+  // ---- カーソル Canvas への描画（変換中テキスト・選択ハイライトも描画） ----
   const drawCursor = useCallback((visible: boolean) => {
     const cursorCanvas = cursorCanvasRef.current
     if (!cursorCanvas) return
@@ -77,8 +137,22 @@ export function TerminalRenderer({ tabId: _tabId, ptyId, fontFamily, fontSize, t
 
     const { row, col } = cursorRef.current
 
-    // カーソルブロック
-    if (visible) {
+    // 選択ハイライト
+    const sel = selectionRef.current
+    if (sel) {
+      const [from, to] = normalizeSelection(sel)
+      ctx.fillStyle = 'rgba(124, 106, 247, 0.35)'
+      for (let r = from.row; r <= to.row; r++) {
+        const startCol = r === from.row ? from.col : 0
+        const endCol   = r === to.row   ? to.col   : colsRef.current
+        if (endCol > startCol) {
+          ctx.fillRect(startCol * cw, r * ch, (endCol - startCol) * cw, ch)
+        }
+      }
+    }
+
+    // カーソルブロック（スクロール中は非表示）
+    if (visible && scrollOffsetRef.current === 0) {
       ctx.fillStyle = '#7c6af7'
       ctx.globalAlpha = 0.8
       ctx.fillRect(col * cw, row * ch, cw, ch)
@@ -91,11 +165,11 @@ export function TerminalRenderer({ tabId: _tabId, ptyId, fontFamily, fontSize, t
       const dpr = window.devicePixelRatio || 1
       const ff = fontFamilyRef.current
       const fs = fontSizeRef.current
-      const theme = themeRef.current
+      const currentTheme = themeRef.current
       const x = col * cw
       const y = row * ch
-      const fg = theme === 'dark' ? '#e8e8e8' : '#1a1a1a'
-      const composeBg = theme === 'dark' ? '#333366' : '#ccccff'
+      const fg = currentTheme === 'dark' ? '#e8e8e8' : '#1a1a1a'
+      const composeBg = currentTheme === 'dark' ? '#333366' : '#ccccff'
 
       ctx.font = `${fs * dpr}px "${ff}"`
       const textW = ctx.measureText(composition).width
@@ -124,20 +198,20 @@ export function TerminalRenderer({ tabId: _tabId, ptyId, fontFamily, fontSize, t
     const ch = cellHeightRef.current
     if (cw === 0 || ch === 0) return
 
-    const theme = themeRef.current
+    const currentTheme = themeRef.current
     const ff = fontFamilyRef.current
     const fs = fontSizeRef.current
     const dpr = window.devicePixelRatio || 1
 
     // デフォルト背景でキャンバス全体をクリア
-    ctx.fillStyle = DEFAULT_BG[theme]
+    ctx.fillStyle = DEFAULT_BG[currentTheme]
     ctx.fillRect(0, 0, canvas.width, canvas.height)
 
     ctx.textBaseline = 'middle'
 
     for (const cell of cells) {
-      let fg = resolveColor(cell.fg, theme, 'fg')
-      let bg = resolveColor(cell.bg, theme, 'bg')
+      let fg = resolveColor(cell.fg, currentTheme, 'fg')
+      let bg = resolveColor(cell.bg, currentTheme, 'bg')
 
       if (cell.flags.inverse) {
         const tmp = fg; fg = bg; bg = tmp
@@ -180,7 +254,6 @@ export function TerminalRenderer({ tabId: _tabId, ptyId, fontFamily, fontSize, t
   }, [])
 
   // RAF スロットリング済みのリドロー関数（最新ペイロードのみ描画）
-  // 複数イベントが1フレーム内に届いても描画は1回だけ実行する
   const scheduleRedrawRef = useRef<() => void>(() => {})
   scheduleRedrawRef.current = () => {
     if (rafIdRef.current !== null) cancelAnimationFrame(rafIdRef.current)
@@ -193,14 +266,17 @@ export function TerminalRenderer({ tabId: _tabId, ptyId, fontFamily, fontSize, t
       cursorVisibleRef.current = true
       drawCursor(true)
       updateInputPosition()
+      updateScrollbar()
     })
   }
 
-  // terminal-cells イベントのハンドラ（ペイロードだけ即時保存、描画は RAF に委ねる）
+  // terminal-cells イベントのハンドラ
   const handlePayloadRef = useRef<(payload: TerminalCellsPayload) => void>(() => {})
   handlePayloadRef.current = (payload: TerminalCellsPayload) => {
     lastPayloadRef.current = payload
     cursorRef.current = payload.cursor
+    scrollOffsetRef.current = payload.scroll_offset
+    scrollbackLenRef.current = payload.scrollback_len
     scheduleRedrawRef.current()
   }
 
@@ -254,8 +330,9 @@ export function TerminalRenderer({ tabId: _tabId, ptyId, fontFamily, fontSize, t
     if (last) {
       drawCells(canvas, last.cells)
       drawCursor(cursorVisibleRef.current)
+      updateScrollbar()
     }
-  }, [drawCells, drawCursor])
+  }, [drawCells, drawCursor, updateScrollbar])
 
   // 初回マウント・フォント変更時にセットアップ
   useEffect(() => {
@@ -303,6 +380,51 @@ export function TerminalRenderer({ tabId: _tabId, ptyId, fontFamily, fontSize, t
   // キーボード入力 → PTY（IME 対応 hidden textarea 経由）
   useTerminalInput({ ptyId, enabled: true, inputRef })
 
+  // ---- Cmd+C ハンドラ ----
+  useEffect(() => {
+    const el = inputRef.current
+    if (!el) return
+
+    const onKeydown = (e: KeyboardEvent) => {
+      if (!e.metaKey || e.key !== 'c') return
+      const sel = selectionRef.current
+      const last = lastPayloadRef.current
+      if (sel && last) {
+        const text = extractSelectedText(last.cells, sel, colsRef.current)
+        if (text) {
+          navigator.clipboard.writeText(text).catch(console.error)
+        }
+      }
+      // 選択を解除
+      selectionRef.current = null
+      drawCursor(cursorVisibleRef.current)
+      e.preventDefault()
+    }
+
+    el.addEventListener('keydown', onKeydown)
+    return () => el.removeEventListener('keydown', onKeydown)
+  }, [drawCursor])
+
+  // ---- ペーストハンドラ（paste イベント経由で ClipboardEvent を使う）----
+  // navigator.clipboard.readText() は他アプリのクリップボードで WKWebView のポップアップが出るため、
+  // textarea の paste イベントの clipboardData から直接取得することで回避する。
+  useEffect(() => {
+    const el = inputRef.current
+    if (!el) return
+
+    const onPaste = (e: ClipboardEvent) => {
+      e.preventDefault()
+      const text = e.clipboardData?.getData('text/plain')
+      const id = ptyIdRef.current
+      if (text && id) {
+        tauriApi.writePty(id, text).catch(console.error)
+      }
+    }
+
+    el.addEventListener('paste', onPaste)
+    return () => el.removeEventListener('paste', onPaste)
+  }, [])
+
   // IME 変換中テキストの表示（compositionupdate / compositionend）
   useEffect(() => {
     const el = inputRef.current
@@ -331,14 +453,96 @@ export function TerminalRenderer({ tabId: _tabId, ptyId, fontFamily, fontSize, t
     }
   }, [drawCursor])
 
+  // ---- マウスホイール → スクロール ----
+  useEffect(() => {
+    const container = containerRef.current
+    if (!container) return
+
+    const onWheel = (e: WheelEvent) => {
+      const id = ptyIdRef.current
+      if (!id) return
+      e.preventDefault()
+      // deltaY 正=下スクロール → ターミナルでは過去へ（正の delta）
+      const delta = e.deltaY > 0 ? -3 : 3
+      tauriApi.scrollTerminal(id, delta).catch(console.error)
+    }
+
+    container.addEventListener('wheel', onWheel, { passive: false })
+    return () => container.removeEventListener('wheel', onWheel)
+  }, [])
+
+  // ---- マウス選択ハンドラ ----
+  const handleMouseDown = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    const cw = cellWidthRef.current
+    const ch = cellHeightRef.current
+    const dpr = window.devicePixelRatio || 1
+    const cell = pixelToCell(e.nativeEvent.offsetX, e.nativeEvent.offsetY, cw, ch, dpr)
+    const clampedCell = {
+      col: Math.max(0, Math.min(colsRef.current - 1, cell.col)),
+      row: Math.max(0, Math.min(rowsRef.current - 1, cell.row)),
+    }
+    selectionRef.current = { start: clampedCell, end: clampedCell }
+    isDraggingRef.current = true
+    drawCursor(cursorVisibleRef.current)
+    inputRef.current?.focus()
+  }, [drawCursor])
+
+  const handleMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    if (!isDraggingRef.current) return
+    const cw = cellWidthRef.current
+    const ch = cellHeightRef.current
+    const dpr = window.devicePixelRatio || 1
+    const cell = pixelToCell(e.nativeEvent.offsetX, e.nativeEvent.offsetY, cw, ch, dpr)
+    const clampedCell = {
+      col: Math.max(0, Math.min(colsRef.current - 1, cell.col)),
+      row: Math.max(0, Math.min(rowsRef.current - 1, cell.row)),
+    }
+    selectionRef.current = { ...selectionRef.current!, end: clampedCell }
+    drawCursor(cursorVisibleRef.current)
+  }, [drawCursor])
+
+  const handleMouseUp = useCallback(() => {
+    isDraggingRef.current = false
+  }, [])
+
   // コンテナクリック時に hidden textarea をフォーカスして IME を有効にする
-  const focusInput = () => { inputRef.current?.focus() }
+  const focusInput = useCallback(() => { inputRef.current?.focus() }, [])
 
   // 初回マウント時もフォーカス
   useEffect(() => {
     inputRef.current?.focus()
     updateInputPosition()
   }, [updateInputPosition])
+
+  // パス挿入など外部操作でフォーカスが外れたとき textarea を再フォーカスする
+  useEffect(() => {
+    const handler = () => { inputRef.current?.focus() }
+    window.addEventListener('terminal:focus', handler)
+    return () => window.removeEventListener('terminal:focus', handler)
+  }, [])
+
+  // キー入力時に選択解除・スクロール末尾へ戻す処理は useTerminalInput を通じて行うため、
+  // PTY への書き込みが発生したタイミングにフックする
+  useEffect(() => {
+    const el = inputRef.current
+    if (!el) return
+
+    const onKeydown = (e: KeyboardEvent) => {
+      if (e.metaKey || e.isComposing) return
+      // 何らかのキーが PTY に送られるとき（encodeKey が null 以外になるとき）に選択解除
+      if (e.key.length === 1 || ['Enter','Backspace','Tab','Escape','ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Delete'].includes(e.key)) {
+        selectionRef.current = null
+        // スクロール末尾へ戻す
+        const id = ptyIdRef.current
+        if (id && scrollOffsetRef.current > 0) {
+          tauriApi.scrollTerminal(id, -scrollOffsetRef.current).catch(console.error)
+        }
+      }
+    }
+
+    el.addEventListener('keydown', onKeydown, { capture: false })
+    return () => el.removeEventListener('keydown', onKeydown, { capture: false })
+  }, [])
 
   const bgColor = theme === 'dark' ? DEFAULT_BG.dark : DEFAULT_BG.light
 
@@ -348,6 +552,9 @@ export function TerminalRenderer({ tabId: _tabId, ptyId, fontFamily, fontSize, t
       className="w-full h-full"
       style={{ position: 'relative', overflow: 'hidden', backgroundColor: bgColor }}
       onClick={focusInput}
+      onMouseDown={handleMouseDown}
+      onMouseMove={handleMouseMove}
+      onMouseUp={handleMouseUp}
     >
       {/* IME 入力を受け取るための hidden textarea */}
       <textarea
@@ -374,6 +581,22 @@ export function TerminalRenderer({ tabId: _tabId, ptyId, fontFamily, fontSize, t
       />
       <canvas ref={canvasRef} style={{ position: 'absolute', top: 0, left: 0 }} />
       <canvas ref={cursorCanvasRef} style={{ position: 'absolute', top: 0, left: 0 }} />
+      {/* スクロールバー */}
+      <div
+        ref={scrollbarRef}
+        style={{
+          position: 'absolute',
+          right: 2,
+          top: 0,
+          width: 5,
+          height: 40,
+          background: theme === 'dark' ? 'rgba(255,255,255,0.4)' : 'rgba(0,0,0,0.3)',
+          borderRadius: 3,
+          opacity: 0,
+          pointerEvents: 'none',
+          transition: 'opacity 0.2s',
+        }}
+      />
     </div>
   )
 }

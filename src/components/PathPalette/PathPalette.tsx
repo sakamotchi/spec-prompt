@@ -131,6 +131,10 @@ export function PathPalette({ open, onClose }: PathPaletteProps) {
             transform: 'translateX(-50%)',
           }}
           onKeyDown={handleKeyDown}
+          onCloseAutoFocus={(e) => {
+            e.preventDefault()
+            window.dispatchEvent(new CustomEvent('terminal:focus'))
+          }}
           aria-label={t('pathPalette.ariaLabel')}
         >
           {/* 検索入力 */}

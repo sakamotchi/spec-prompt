@@ -98,6 +98,9 @@ export function useTerminalInput({ ptyId, enabled, inputRef }: UseTerminalInputO
       // IME 変換中は keydown を無視する（compositionend で送信）
       if (e.isComposing) return
 
+      // Ctrl+P はアプリレベルショートカット（PathPalette）→ PTY に送らない
+      if (e.ctrlKey && !e.altKey && !e.metaKey && e.key === 'p') return
+
       // IME 確定直後の Enter は確定キーなので PTY に送らない
       if (justComposed) {
         justComposed = false

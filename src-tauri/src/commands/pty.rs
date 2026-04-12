@@ -201,6 +201,20 @@ pub fn resize_terminal(
     Ok(())
 }
 
+/// ターミナルのスクロール位置を変更して再描画する（正=上スクロール、負=下スクロール）
+#[tauri::command]
+pub fn scroll_terminal(
+    id: String,
+    delta: i32,
+    terminal_manager: State<TerminalManager>,
+    app: AppHandle,
+) -> Result<(), String> {
+    if let Some(payload) = terminal_manager.scroll_and_collect(&id, delta) {
+        let _ = app.emit("terminal-cells", payload);
+    }
+    Ok(())
+}
+
 /// `~` をホームディレクトリに展開する。絶対パスはそのまま返す。
 fn resolve_cwd(cwd: &str) -> String {
     if cwd.starts_with('~') {

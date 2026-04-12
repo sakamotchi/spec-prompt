@@ -20,6 +20,10 @@ export interface TerminalCellsPayload {
   id: string;
   cells: CellData[];
   cursor: { row: number; col: number };
+  /** 現在のスクロール行数（0=末尾、正=上方向にスクロール済み） */
+  scroll_offset: number;
+  /** スクロールバック履歴の総行数 */
+  scrollback_len: number;
 }
 
 export interface CellData {
@@ -65,6 +69,9 @@ export const tauriApi = {
 
   resizeTerminal: (id: string, cols: number, rows: number): Promise<void> =>
     invoke("resize_terminal", { id, cols, rows }),
+
+  scrollTerminal: (id: string, delta: number): Promise<void> =>
+    invoke("scroll_terminal", { id, delta }),
 
   onTerminalCells: (callback: (payload: TerminalCellsPayload) => void): Promise<UnlistenFn> =>
     listen<TerminalCellsPayload>("terminal-cells", (event) => callback(event.payload)),

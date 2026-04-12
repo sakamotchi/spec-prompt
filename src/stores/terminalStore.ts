@@ -4,7 +4,6 @@ export interface TerminalTab {
   id: string
   title: string
   ptyId: string | null
-  scrollback: string
 }
 
 export interface TerminalGroup {
@@ -22,7 +21,6 @@ interface TerminalState {
   closeTab: (id: string, pane: 'primary' | 'secondary') => void
   setActiveTab: (id: string, pane: 'primary' | 'secondary') => void
   setPtyId: (tabId: string, ptyId: string) => void
-  appendScrollback: (tabId: string, data: string) => void
   moveTab: (tabId: string, fromPane: 'primary' | 'secondary', toPane: 'primary' | 'secondary') => void
   toggleSplit: () => void
   setFocusedPane: (pane: 'primary' | 'secondary') => void
@@ -36,7 +34,6 @@ const makeTab = (index: number): TerminalTab => ({
   id: crypto.randomUUID(),
   title: `Terminal ${index}`,
   ptyId: null,
-  scrollback: '',
 })
 
 const makeGroup = (index = 1): TerminalGroup => {
@@ -81,20 +78,6 @@ export const useTerminalStore = create<TerminalState>((set) => ({
       const updateGroup = (g: TerminalGroup): TerminalGroup => ({
         ...g,
         tabs: g.tabs.map((t) => (t.id === tabId ? { ...t, ptyId } : t)),
-      })
-      return { primary: updateGroup(state.primary), secondary: updateGroup(state.secondary) }
-    }),
-
-  appendScrollback: (tabId, data) =>
-    set((state) => {
-      const LIMIT = 100_000
-      const updateGroup = (g: TerminalGroup): TerminalGroup => ({
-        ...g,
-        tabs: g.tabs.map((t) => {
-          if (t.id !== tabId) return t
-          const next = t.scrollback + data
-          return { ...t, scrollback: next.length > LIMIT ? next.slice(-LIMIT) : next }
-        }),
       })
       return { primary: updateGroup(state.primary), secondary: updateGroup(state.secondary) }
     }),

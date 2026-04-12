@@ -29,6 +29,8 @@ export function usePathInsertion() {
 
       if (ptyId) {
         tauriApi.writePty(ptyId, text).catch(console.error)
+        // パス挿入後にターミナルの入力フォーカスを復元する
+        window.dispatchEvent(new CustomEvent('terminal:focus'))
       }
     },
     [projectRoot, pathFormat],

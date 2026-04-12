@@ -7,7 +7,7 @@ use commands::filesystem::{
     create_dir, create_file, delete_path, open_in_editor, read_dir, read_file, rename_path,
     write_file,
 };
-use commands::pty::{close_pty, resize_pty, resize_terminal, spawn_pty, write_pty, PtyManager};
+use commands::pty::{close_pty, resize_pty, resize_terminal, scroll_terminal, spawn_pty, write_pty, PtyManager};
 use terminal::TerminalManager;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -23,6 +23,7 @@ pub fn run() {
             write_pty,
             resize_pty,
             resize_terminal,
+            scroll_terminal,
             close_pty,
             read_dir,
             read_file,
