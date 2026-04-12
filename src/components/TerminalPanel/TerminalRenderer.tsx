@@ -65,6 +65,11 @@ export function TerminalRenderer({ ptyId, fontFamily, fontSize, theme }: Termina
   const selectionRef = useRef<SelectionRange | null>(null)
   const isDraggingRef = useRef(false)
 
+  // スクロールバードラッグ
+  const isScrollbarDraggingRef = useRef(false)
+  const scrollbarDragStartYRef = useRef(0)
+  const scrollbarDragStartOffsetRef = useRef(0)
+
   // prop を ref に同期（コールバック内で最新値を参照するため）
   const ptyIdRef = useRef(ptyId)
   const themeRef = useRef(theme)
@@ -471,8 +476,67 @@ export function TerminalRenderer({ ptyId, fontFamily, fontSize, theme }: Termina
     return () => container.removeEventListener('wheel', onWheel)
   }, [])
 
+  // ---- スクロールバードラッグ ----
+  useEffect(() => {
+    const bar = scrollbarRef.current
+    if (!bar) return
+
+    const onBarMouseDown = (e: MouseEvent) => {
+      e.preventDefault()
+      e.stopPropagation()
+      isScrollbarDraggingRef.current = true
+      scrollbarDragStartYRef.current = e.clientY
+      scrollbarDragStartOffsetRef.current = scrollOffsetRef.current
+      bar.style.cursor = 'grabbing'
+    }
+
+    const onMouseMove = (e: MouseEvent) => {
+      if (!isScrollbarDraggingRef.current) return
+      const container = containerRef.current
+      const id = ptyIdRef.current
+      if (!container || !id) return
+
+      const containerHeight = container.offsetHeight
+      const rows = rowsRef.current
+      const len = scrollbackLenRef.current
+      if (len === 0) return
+
+      const ratio = rows / (rows + len)
+      const barH = Math.max(20, containerHeight * ratio)
+      const trackHeight = containerHeight - barH
+      if (trackHeight <= 0) return
+
+      const deltaY = e.clientY - scrollbarDragStartYRef.current
+      // ドラッグ下方向 = barTop 増加 = offset 減少（末尾へ）
+      const deltaOffset = -Math.round(deltaY * len / trackHeight)
+      const targetOffset = Math.max(0, Math.min(len, scrollbarDragStartOffsetRef.current + deltaOffset))
+      const scrollDelta = targetOffset - scrollOffsetRef.current
+
+      if (scrollDelta !== 0) {
+        tauriApi.scrollTerminal(id, scrollDelta).catch(console.error)
+      }
+    }
+
+    const onMouseUp = () => {
+      if (!isScrollbarDraggingRef.current) return
+      isScrollbarDraggingRef.current = false
+      bar.style.cursor = 'grab'
+    }
+
+    bar.addEventListener('mousedown', onBarMouseDown)
+    window.addEventListener('mousemove', onMouseMove)
+    window.addEventListener('mouseup', onMouseUp)
+    return () => {
+      bar.removeEventListener('mousedown', onBarMouseDown)
+      window.removeEventListener('mousemove', onMouseMove)
+      window.removeEventListener('mouseup', onMouseUp)
+    }
+  }, [])
+
   // ---- マウス選択ハンドラ ----
   const handleMouseDown = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    // スクロールバードラッグ中はテキスト選択を開始しない
+    if (isScrollbarDraggingRef.current) return
     const cw = cellWidthRef.current
     const ch = cellHeightRef.current
     const dpr = window.devicePixelRatio || 1
@@ -581,19 +645,19 @@ export function TerminalRenderer({ ptyId, fontFamily, fontSize, theme }: Termina
       />
       <canvas ref={canvasRef} style={{ position: 'absolute', top: 0, left: 0 }} />
       <canvas ref={cursorCanvasRef} style={{ position: 'absolute', top: 0, left: 0 }} />
-      {/* スクロールバー */}
+      {/* スクロールバー（ドラッグ対応） */}
       <div
         ref={scrollbarRef}
         style={{
           position: 'absolute',
           right: 2,
           top: 0,
-          width: 5,
+          width: 6,
           height: 40,
           background: theme === 'dark' ? 'rgba(255,255,255,0.4)' : 'rgba(0,0,0,0.3)',
           borderRadius: 3,
           opacity: 0,
-          pointerEvents: 'none',
+          cursor: 'grab',
           transition: 'opacity 0.2s',
         }}
       />
