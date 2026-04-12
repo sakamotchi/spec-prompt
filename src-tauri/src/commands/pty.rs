@@ -5,7 +5,9 @@ use std::thread;
 
 use portable_pty::{CommandBuilder, NativePtySystem, PtySize, PtySystem};
 use serde::Serialize;
-use tauri::{AppHandle, Emitter, State};
+use tauri::{AppHandle, Emitter, Manager, State};
+
+use crate::terminal::TerminalManager;
 
 #[derive(Serialize, Clone)]
 pub struct PtyOutput {
@@ -38,6 +40,7 @@ pub fn spawn_pty(
     cwd: String,
     app: AppHandle,
     manager: State<PtyManager>,
+    terminal_manager: State<TerminalManager>,
 ) -> Result<String, String> {
     let pty_system = NativePtySystem::default();
     let pair = pty_system
@@ -92,7 +95,12 @@ pub fn spawn_pty(
         id
     };
 
+    // TerminalInstance を生成・登録
+    use crate::terminal::instance::TerminalInstance;
+    terminal_manager.insert(id.clone(), TerminalInstance::new(80, 24));
+
     // PTY 出力を Tauri イベントとしてフロントエンドにストリーミングするスレッド
+    // AppHandle を clone してスレッドに移動し、内部で TerminalManager を取得する
     let pty_id = id.clone();
     thread::spawn(move || {
         let mut buf = [0u8; 4096];
@@ -101,13 +109,15 @@ pub fn spawn_pty(
                 Ok(0) => break,
                 Ok(n) => {
                     let data = String::from_utf8_lossy(&buf[..n]).to_string();
-                    let _ = app.emit(
-                        "pty-output",
-                        PtyOutput {
-                            id: pty_id.clone(),
-                            data,
-                        },
-                    );
+
+                    // 既存: xterm.js 向け生バイト列イベント（Phase 4 まで維持）
+                    let _ = app.emit("pty-output", PtyOutput { id: pty_id.clone(), data });
+
+                    // 新規: alacritty-terminal でパースしてセルグリッドを送信
+                    let tm = app.state::<crate::terminal::TerminalManager>();
+                    if let Some(payload) = tm.advance_and_collect(&pty_id, &buf[..n]) {
+                        let _ = app.emit("terminal-cells", payload);
+                    }
                 }
                 Err(_) => break,
             }
@@ -158,8 +168,36 @@ pub fn resize_pty(
 }
 
 #[tauri::command]
-pub fn close_pty(id: String, manager: State<PtyManager>) -> Result<(), String> {
+pub fn close_pty(
+    id: String,
+    manager: State<PtyManager>,
+    terminal_manager: State<TerminalManager>,
+) -> Result<(), String> {
     manager.instances.lock().unwrap().remove(&id);
+    terminal_manager.remove(&id);
+    Ok(())
+}
+
+/// Term と PTY 両方をリサイズする
+#[tauri::command]
+pub fn resize_terminal(
+    id: String,
+    cols: u16,
+    rows: u16,
+    pty_manager: State<PtyManager>,
+    terminal_manager: State<TerminalManager>,
+) -> Result<(), String> {
+    // PTY リサイズ
+    {
+        let instances = pty_manager.instances.lock().unwrap();
+        if let Some(pty) = instances.get(&id) {
+            pty.master
+                .resize(PtySize { rows, cols, pixel_width: 0, pixel_height: 0 })
+                .map_err(|e| e.to_string())?;
+        }
+    }
+    // Term リサイズ
+    terminal_manager.resize(&id, cols, rows);
     Ok(())
 }
 
