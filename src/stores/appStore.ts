@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
-import type { FileNode } from '../lib/tauriApi'
+import type { FileNode, GitFileStatus } from '../lib/tauriApi'
 import { tauriApi } from '../lib/tauriApi'
 import { parseStatus, type DocStatus } from '../lib/frontmatter'
 
@@ -67,6 +67,10 @@ interface AppState {
   docStatuses: Record<string, DocStatus | null>
   setDocStatus: (path: string, status: DocStatus | null) => void
   loadDocStatuses: (paths: string[]) => Promise<void>
+
+  // Git ステータス
+  gitStatuses: Record<string, GitFileStatus>
+  refreshGitStatus: () => void
 }
 
 export const useAppStore = create<AppState>()(
@@ -119,7 +123,7 @@ export const useAppStore = create<AppState>()(
 
       recentProjects: [],
       setRecentProjects: (projects) => set({ recentProjects: projects }),
-      switchProject: (root) =>
+      switchProject: (root) => {
         set({
           projectRoot: root,
           fileTree: [],
@@ -129,7 +133,11 @@ export const useAppStore = create<AppState>()(
           editingState: null,
           creatingState: null,
           docStatuses: {},
-        }),
+          gitStatuses: {},
+        })
+        // 新プロジェクトの Git ステータスを取得
+        useAppStore.getState().refreshGitStatus()
+      },
 
       docStatuses: {},
       setDocStatus: (path, status) =>
@@ -148,6 +156,26 @@ export const useAppStore = create<AppState>()(
           })
         )
       },
+
+      // Git ステータス
+      gitStatuses: {},
+      refreshGitStatus: (() => {
+        let timer: ReturnType<typeof setTimeout> | null = null
+        return () => {
+          if (timer) clearTimeout(timer)
+          timer = setTimeout(async () => {
+            timer = null
+            const root = useAppStore.getState().projectRoot
+            if (!root) return
+            try {
+              const statuses = await tauriApi.getGitStatus(root)
+              set({ gitStatuses: statuses })
+            } catch {
+              // Git 未対応の場合は空のまま
+            }
+          }, 500)
+        }
+      })(),
     }),
     {
       name: 'spec-prompt-app-store',

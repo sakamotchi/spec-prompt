@@ -14,6 +14,8 @@ export function useFileTree() {
   const pendingRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const isUpdatingRef = useRef(false)
 
+  const refreshGitStatus = useAppStore((s) => s.refreshGitStatus)
+
   // ファイルツリー初回取得（ルート1階層のみ）
   useEffect(() => {
     if (!projectRoot) return
@@ -21,10 +23,13 @@ export function useFileTree() {
     setError(null)
     tauriApi
       .readDir(projectRoot)
-      .then(setFileTree)
+      .then((tree) => {
+        setFileTree(tree)
+        refreshGitStatus()
+      })
       .catch((e: unknown) => setError(String(e)))
       .finally(() => setLoading(false))
-  }, [projectRoot, setFileTree])
+  }, [projectRoot, setFileTree, refreshGitStatus])
 
   // ファイル監視 → 変更があった親ディレクトリのみ更新
   useEffect(() => {
@@ -58,15 +63,30 @@ export function useFileTree() {
 
         Promise.all(promises).finally(() => {
           isUpdatingRef.current = false
+          refreshGitStatus()
         })
       }, DEBOUNCE_MS)
     }
 
+    // .git/ 内の特定ファイル変更は外部 git 操作（commit, checkout 等）を示す
+    const isGitStateChange = (p: string) =>
+      p.includes('/.git/HEAD') ||
+      p.includes('/.git/refs/') ||
+      p.includes('/.git/MERGE_HEAD')
+
     watch(
       projectRoot,
       (event) => {
-        if (event.paths.length === 0) return
-        scheduleUpdate(event.paths)
+        // プロジェクトファイルの変更（.git/ 以外）→ ツリー更新 + git status 更新
+        const projectChanges = event.paths.filter((p) => !p.includes('/.git/'))
+        if (projectChanges.length > 0) {
+          scheduleUpdate(projectChanges)
+        }
+        // .git/HEAD, .git/refs/ 等の変更 → git status のみ更新（外部 commit/checkout 検知）
+        // .git/index は git status 自身が更新するため除外（無限ループ防止）
+        if (event.paths.some(isGitStateChange)) {
+          refreshGitStatus()
+        }
       },
       { recursive: true, delayMs: 300 },
     )
@@ -79,7 +99,7 @@ export function useFileTree() {
       if (pendingRef.current) clearTimeout(pendingRef.current)
       unlisten?.()
     }
-  }, [projectRoot, setFileTree, updateDirChildren])
+  }, [projectRoot, setFileTree, updateDirChildren, refreshGitStatus])
 
   return { loading, error }
 }

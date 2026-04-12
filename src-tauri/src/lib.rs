@@ -3,6 +3,7 @@ mod terminal;
 
 use commands::config::{add_recent_project, get_appearance, get_recent_projects, save_appearance};
 use commands::fonts::load_font_bytes;
+use commands::git::git_status;
 use commands::filesystem::{
     create_dir, create_file, delete_path, open_in_editor, read_dir, read_file, rename_path,
     write_file,
@@ -38,6 +39,7 @@ pub fn run() {
             get_appearance,
             save_appearance,
             load_font_bytes,
+            git_status,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

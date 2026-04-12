@@ -133,7 +133,15 @@ export const tauriApi = {
   loadFontBytes: (family: string): Promise<number[]> =>
     invoke("load_font_bytes", { family }),
 
+  // Git
+  getGitStatus: (cwd: string): Promise<Record<string, GitFileStatus>> =>
+    invoke("git_status", { cwd }),
 };
+
+export interface GitFileStatus {
+  staged: string
+  unstaged: string
+}
 
 export interface AppearanceSettings {
   theme: string;

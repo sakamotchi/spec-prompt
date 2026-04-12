@@ -3,6 +3,7 @@ import type { TerminalCellsPayload, CellData } from '../../lib/tauriApi'
 import { tauriApi } from '../../lib/tauriApi'
 import { resolveColor, DEFAULT_BG } from './colors'
 import { useTerminalInput } from './useTerminalInput'
+import { useAppStore } from '../../stores/appStore'
 
 interface CellPos { row: number; col: number }
 interface SelectionRange { start: CellPos; end: CellPos }
@@ -597,6 +598,8 @@ export function TerminalRenderer({ ptyId, fontFamily, fontSize, theme }: Termina
 
   // キー入力時に選択解除・スクロール末尾へ戻す処理は useTerminalInput を通じて行うため、
   // PTY への書き込みが発生したタイミングにフックする
+  // Enter 押下時は git status を更新（git commit, git add 等のコマンド実行検知）
+  const refreshGitStatus = useAppStore((s) => s.refreshGitStatus)
   useEffect(() => {
     const el = inputRef.current
     if (!el) return
@@ -611,12 +614,16 @@ export function TerminalRenderer({ ptyId, fontFamily, fontSize, theme }: Termina
         if (id && scrollOffsetRef.current > 0) {
           tauriApi.scrollTerminal(id, -scrollOffsetRef.current).catch(console.error)
         }
+        // Enter 押下時に git status を更新（デバウンス済み）
+        if (e.key === 'Enter') {
+          refreshGitStatus()
+        }
       }
     }
 
     el.addEventListener('keydown', onKeydown, { capture: false })
     return () => el.removeEventListener('keydown', onKeydown, { capture: false })
-  }, [])
+  }, [refreshGitStatus])
 
   const bgColor = theme === 'dark' ? DEFAULT_BG.dark : DEFAULT_BG.light
 

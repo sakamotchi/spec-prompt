@@ -11,6 +11,7 @@ import { TreeContextMenu } from './ContextMenu'
 import { InlineInput } from './InlineInput'
 import { DeleteDialog } from './DeleteDialog'
 import { DOC_STATUS_COLOR } from '../../lib/frontmatter'
+import { getGitColor, getGitBadge, getDirGitColor } from '../../lib/gitStatus'
 
 const EXT_ICON_MAP: Record<string, string> = {
   md:   'vscode-icons:file-type-markdown',
@@ -54,6 +55,15 @@ export const TreeNode = memo(function TreeNode({ node, depth }: TreeNodeProps) {
   const isEditing = useAppStore((s) => s.editingState?.path === node.path)
   const showCreatingInput = useAppStore((s) => node.is_dir && s.creatingState?.parentPath === node.path)
   const docStatus = useAppStore((s) => s.docStatuses[node.path] ?? null)
+  // gitStatuses 全体ではなく計算結果（色文字列）のみを購読し、不要な再レンダリングを防ぐ
+  const gitColor = useAppStore((s) =>
+    node.is_dir
+      ? getDirGitColor(node.path, s.gitStatuses)
+      : getGitColor(s.gitStatuses[node.path])
+  )
+  const gitBadge = useAppStore((s) =>
+    node.is_dir ? undefined : getGitBadge(s.gitStatuses[node.path])
+  )
 
   const toggleExpandedDir = useAppStore((s) => s.toggleExpandedDir)
   const selectedFile = useAppStore((s) => s.selectedFile)
@@ -291,7 +301,15 @@ export const TreeNode = memo(function TreeNode({ node, depth }: TreeNodeProps) {
               />
             ) : (
               <>
-                <span className="truncate flex-1">{node.name}</span>
+                <span className="truncate flex-1" style={gitColor ? { color: gitColor } : undefined}>{node.name}</span>
+                {gitBadge && (
+                  <span
+                    className="shrink-0 text-[10px] ml-1 font-mono leading-none"
+                    style={{ color: gitColor }}
+                  >
+                    {gitBadge}
+                  </span>
+                )}
                 {!node.is_dir && /\.(md|mdx)$/i.test(node.name) && (() => {
                   return docStatus ? (
                     <span
