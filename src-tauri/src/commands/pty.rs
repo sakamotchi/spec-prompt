@@ -93,8 +93,13 @@ pub fn spawn_pty(
                 path = format!("{}:{}", p, path);
             }
         }
+
         cmd.env("PATH", path);
     }
+
+    // Claude Code の Auto モードで OSC 9 通知シーケンスを出力させるため、
+    // ターミナル種別を iTerm2 として報告する
+    cmd.env("TERM_PROGRAM", "iTerm.app");
 
     // TERM が未設定だと zsh がバックスペースの描画シーケンスを正しく送れず
     // xterm.js 上でスペースとして表示されるため、明示的にフォールバックを設定する
@@ -128,10 +133,22 @@ pub fn spawn_pty(
     let pty_id = id.clone();
     thread::spawn(move || {
         let mut buf = [0u8; 4096];
+        let mut osc9 = crate::commands::notification::Osc9Detector::new();
         loop {
             match reader.read(&mut buf) {
                 Ok(0) => break,
                 Ok(n) => {
+                    // OSC 9 通知検出
+                    for msg in osc9.feed(&buf[..n]) {
+                        if !crate::commands::notification::is_app_focused(&app) {
+                            crate::commands::notification::send_native_notification(
+                                &app,
+                                "SpecPrompt / Claude Code",
+                                &msg,
+                            );
+                        }
+                    }
+
                     let data = String::from_utf8_lossy(&buf[..n]).to_string();
 
                     // 既存: xterm.js 向け生バイト列イベント（Phase 4 まで維持）

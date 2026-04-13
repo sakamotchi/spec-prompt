@@ -120,7 +120,7 @@ fn extract_searchable_text(payload: &ClaudeHookPayload) -> String {
     parts.join(" ")
 }
 
-fn is_app_focused(app: &AppHandle) -> bool {
+pub fn is_app_focused(app: &AppHandle) -> bool {
     app.get_webview_window("main")
         .and_then(|w| w.is_focused().ok())
         .unwrap_or(false)
@@ -129,7 +129,7 @@ fn is_app_focused(app: &AppHandle) -> bool {
 /// macOS ネイティブ通知を送信する。
 /// プロダクションビルドでは tauri-plugin-notification（SpecPrompt アイコン表示）、
 /// デバッグビルドでは osascript にフォールバックする。
-fn send_native_notification(app: &AppHandle, title: &str, body: &str) {
+pub fn send_native_notification(app: &AppHandle, title: &str, body: &str) {
     // まず tauri-plugin-notification を試行
     let plugin_result = app
         .notification()
@@ -154,6 +154,109 @@ fn send_native_notification(app: &AppHandle, title: &str, body: &str) {
         .arg("-e")
         .arg(&script)
         .output();
+}
+
+// --- OSC 9 検出 ---
+
+/// OSC 9 エスケープシーケンス (`ESC ] 9 ; <message> BEL`) を検出するステートマシン。
+/// PTY 出力はチャンク分割されるため、バッファ境界をまたぐ OSC 9 にも対応する。
+pub struct Osc9Detector {
+    state: Osc9State,
+    buffer: Vec<u8>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+enum Osc9State {
+    Normal,
+    Esc,        // ESC を検出
+    OscBracket, // ESC ] を検出
+    Osc9,       // ESC ] 9 を検出
+    Collecting,  // ESC ] 9 ; を検出、メッセージ蓄積中
+    CollectEsc, // 蓄積中に ESC を検出（ST 終端の可能性）
+}
+
+const OSC9_MAX_LEN: usize = 4096;
+
+impl Osc9Detector {
+    pub fn new() -> Self {
+        Self {
+            state: Osc9State::Normal,
+            buffer: Vec::new(),
+        }
+    }
+
+    /// バイト列をスキャンし、完了した OSC 9 メッセージを返す。
+    pub fn feed(&mut self, data: &[u8]) -> Vec<String> {
+        let mut messages = Vec::new();
+        for &b in data {
+            match self.state {
+                Osc9State::Normal => {
+                    if b == 0x1b {
+                        self.state = Osc9State::Esc;
+                    }
+                }
+                Osc9State::Esc => {
+                    if b == b']' {
+                        self.state = Osc9State::OscBracket;
+                    } else {
+                        self.state = Osc9State::Normal;
+                    }
+                }
+                Osc9State::OscBracket => {
+                    if b == b'9' {
+                        self.state = Osc9State::Osc9;
+                    } else {
+                        self.state = Osc9State::Normal;
+                    }
+                }
+                Osc9State::Osc9 => {
+                    if b == b';' {
+                        self.state = Osc9State::Collecting;
+                        self.buffer.clear();
+                    } else {
+                        self.state = Osc9State::Normal;
+                    }
+                }
+                Osc9State::Collecting => {
+                    if b == 0x07 {
+                        // BEL 終端
+                        if let Ok(msg) = String::from_utf8(self.buffer.clone()) {
+                            messages.push(msg);
+                        }
+                        self.buffer.clear();
+                        self.state = Osc9State::Normal;
+                    } else if b == 0x1b {
+                        // ST 終端の開始の可能性
+                        self.state = Osc9State::CollectEsc;
+                    } else if self.buffer.len() < OSC9_MAX_LEN {
+                        self.buffer.push(b);
+                    } else {
+                        // バッファ上限超過 → リセット
+                        self.buffer.clear();
+                        self.state = Osc9State::Normal;
+                    }
+                }
+                Osc9State::CollectEsc => {
+                    if b == b'\\' {
+                        // ESC \ (ST) 終端
+                        if let Ok(msg) = String::from_utf8(self.buffer.clone()) {
+                            messages.push(msg);
+                        }
+                        self.buffer.clear();
+                        self.state = Osc9State::Normal;
+                    } else {
+                        // ESC の後に \ が来なかった → ESC をバッファに追加して継続
+                        if self.buffer.len() < OSC9_MAX_LEN {
+                            self.buffer.push(0x1b);
+                            self.buffer.push(b);
+                        }
+                        self.state = Osc9State::Collecting;
+                    }
+                }
+            }
+        }
+        messages
+    }
 }
 
 /// HTTP サーバーを起動する（バックグラウンドスレッド）
@@ -349,5 +452,82 @@ mod tests {
         let json = r#"{"lastAssistantMessage":"hello"}"#;
         let payload: ClaudeHookPayload = serde_json::from_str(json).unwrap();
         assert_eq!(payload.last_assistant_message, Some("hello".into()));
+    }
+
+    // --- Osc9Detector tests ---
+
+    #[test]
+    fn test_osc9_bel_terminator() {
+        let mut d = Osc9Detector::new();
+        let input = b"\x1b]9;Hello World\x07";
+        let msgs = d.feed(input);
+        assert_eq!(msgs, vec!["Hello World"]);
+    }
+
+    #[test]
+    fn test_osc9_st_terminator() {
+        let mut d = Osc9Detector::new();
+        let input = b"\x1b]9;Hello ST\x1b\\";
+        let msgs = d.feed(input);
+        assert_eq!(msgs, vec!["Hello ST"]);
+    }
+
+    #[test]
+    fn test_osc9_chunked() {
+        let mut d = Osc9Detector::new();
+        // チャンク分割: ESC ] 9 ; Hel | lo\x07
+        let msgs1 = d.feed(b"\x1b]9;Hel");
+        assert!(msgs1.is_empty());
+        let msgs2 = d.feed(b"lo\x07");
+        assert_eq!(msgs2, vec!["Hello"]);
+    }
+
+    #[test]
+    fn test_osc9_multiple_in_one_chunk() {
+        let mut d = Osc9Detector::new();
+        let input = b"\x1b]9;first\x07some text\x1b]9;second\x07";
+        let msgs = d.feed(input);
+        assert_eq!(msgs, vec!["first", "second"]);
+    }
+
+    #[test]
+    fn test_osc9_ignores_other_osc() {
+        let mut d = Osc9Detector::new();
+        // OSC 0 (title set) should not be detected
+        let input = b"\x1b]0;window title\x07";
+        let msgs = d.feed(input);
+        assert!(msgs.is_empty());
+    }
+
+    #[test]
+    fn test_osc9_empty_message() {
+        let mut d = Osc9Detector::new();
+        let input = b"\x1b]9;\x07";
+        let msgs = d.feed(input);
+        assert_eq!(msgs, vec![""]);
+    }
+
+    #[test]
+    fn test_osc9_max_length() {
+        let mut d = Osc9Detector::new();
+        let mut input = Vec::new();
+        input.extend_from_slice(b"\x1b]9;");
+        input.extend(vec![b'x'; OSC9_MAX_LEN + 100]);
+        input.push(0x07);
+        let msgs = d.feed(&input);
+        // 上限超過でリセットされるため空
+        assert!(msgs.is_empty());
+    }
+
+    #[test]
+    fn test_osc9_japanese_message() {
+        let mut d = Osc9Detector::new();
+        let msg = "通知テスト";
+        let mut input = Vec::new();
+        input.extend_from_slice(b"\x1b]9;");
+        input.extend_from_slice(msg.as_bytes());
+        input.push(0x07);
+        let msgs = d.feed(&input);
+        assert_eq!(msgs, vec!["通知テスト"]);
     }
 }
