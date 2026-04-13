@@ -8,6 +8,7 @@ import { useAppStore } from "./stores/appStore";
 import i18n from "./i18n";
 import { loadWindowSessions, clearWindowSessions } from "./lib/windowSession";
 import { tauriApi } from "./lib/tauriApi";
+import { isPermissionGranted, requestPermission } from "@tauri-apps/plugin-notification";
 
 class ErrorBoundary extends Component<{ children: ReactNode }, { error: Error | null }> {
   state = { error: null }
@@ -26,6 +27,13 @@ class ErrorBoundary extends Component<{ children: ReactNode }, { error: Error | 
 }
 
 useSettingsStore.getState().loadSettings().catch(console.error)
+
+// macOS 通知権限をリクエスト（初回のみダイアログが出る）
+isPermissionGranted().then((granted) => {
+  if (!granted) requestPermission().catch(console.error)
+})
+
+// 通知は Rust 側で osascript 経由で送信するため、JS 側のリスナーは不要
 i18n.changeLanguage(useSettingsStore.getState().language)
 
 // 新規ウィンドウとして起動されたとき、URL クエリパラメータを読み取る
