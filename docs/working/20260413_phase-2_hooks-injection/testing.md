@@ -1,53 +1,29 @@
-# テスト手順書 - Phase 2: hooks 注入
+# テスト手順書 - Phase 2: OSC 9 検出
 
 ## 概要
 
-claude ラッパースクリプトと hooks コマンドスクリプトが正しく動作し、SpecPrompt 内の Claude Code で自動通知が機能することを確認する。
+OSC 9 エスケープシーケンスの検出と通知発火が正しく動作することを確認する。
 
 ## 前提条件
 
-- Phase 1 が完了していること（HTTP サーバー + 通知が動作）
+- Phase 1 が完了していること（通知基盤が動作）
 - `npx tauri dev` でアプリが起動していること
 - Claude Code がインストールされていること
 
 ## 手動テスト
 
-### ケース 1: スクリプトが正しく配置される
-
-**手順:**
-
-1. `~/.config/spec-prompt/` ディレクトリを削除する（存在する場合）
-2. `npx tauri dev` でアプリを起動する
-3. 以下のファイルが作成されていることを確認:
-   ```bash
-   ls -la ~/.config/spec-prompt/bin/claude
-   ls -la ~/.config/spec-prompt/hooks/claude-notify.sh
-   ```
-
-**期待結果:**
-
-- 両ファイルが存在し、実行権限（`-rwxr-xr-x`）が付与されている
-
-**確認結果:**
-
-- [ ] OK / NG
-
----
-
-### ケース 2: ラッパーが本物の claude を見つける
+### ケース 1: TERM_PROGRAM が設定されている
 
 **手順:**
 
 1. SpecPrompt のターミナルで以下を実行:
    ```bash
-   which claude
-   claude --version
+   echo $TERM_PROGRAM
    ```
 
 **期待結果:**
 
-- `which claude` が `~/.config/spec-prompt/bin/claude` を返す
-- `claude --version` が本物の Claude Code のバージョンを返す（ラッパーが素通しで動作）
+- `iTerm.app` が出力される
 
 **確認結果:**
 
@@ -55,19 +31,39 @@ claude ラッパースクリプトと hooks コマンドスクリプトが正し
 
 ---
 
-### ケース 3: hooks が注入されて通知が表示される
+### ケース 2: OSC 9 シーケンスで通知が表示される（手動テスト）
+
+**手順:**
+
+1. **SpecPrompt を背面にする**（他のウィンドウをクリック）
+2. SpecPrompt のターミナルで以下を実行して OSC 9 を手動送信:
+   ```bash
+   printf '\033]9;テスト通知メッセージ\007'
+   ```
+
+**期待結果:**
+
+- macOS デスクトップ通知が表示される
+- 本文に「テスト通知メッセージ」が含まれる
+
+**確認結果:**
+
+- [ ] OK / NG
+
+---
+
+### ケース 3: Claude Code の承認待ちで通知が表示される
 
 **手順:**
 
 1. SpecPrompt のターミナルで `claude` を起動する
 2. ファイル編集など承認が必要な操作を依頼する
-3. **SpecPrompt を背面にする**（他のウィンドウをクリック）
+3. **SpecPrompt を背面にする**
 4. Claude Code が承認待ちになったとき、macOS 通知を確認する
 
 **期待結果:**
 
 - macOS デスクトップ通知が表示される
-- タイトル: `SpecPrompt / Claude Code`
 
 **確認結果:**
 
@@ -75,7 +71,7 @@ claude ラッパースクリプトと hooks コマンドスクリプトが正し
 
 ---
 
-### ケース 4: タスク完了で通知が表示される
+### ケース 4: Claude Code のタスク完了で通知が表示される
 
 **手順:**
 
@@ -93,18 +89,18 @@ claude ラッパースクリプトと hooks コマンドスクリプトが正し
 
 ---
 
-### ケース 5: SpecPrompt 外のターミナルでは hooks が注入されない
+### ケース 5: フォーカス中は通知が抑制される
 
 **手順:**
 
-1. macOS の標準ターミナル（Terminal.app または iTerm2）を開く
-2. `echo $SPEC_PROMPT_NOTIFICATION` を実行する
-3. `which claude` を実行する
+1. **SpecPrompt にフォーカスした状態**で以下を実行:
+   ```bash
+   printf '\033]9;抑制テスト\007'
+   ```
 
 **期待結果:**
 
-- `SPEC_PROMPT_NOTIFICATION` が空（未設定）
-- `which claude` が SpecPrompt のラッパーではなく、本物の claude パスを返す
+- macOS デスクトップ通知が**表示されない**
 
 **確認結果:**
 
@@ -112,21 +108,17 @@ claude ラッパースクリプトと hooks コマンドスクリプトが正し
 
 ---
 
-### ケース 6: SpecPrompt 未起動時に hooks スクリプトがエラーにならない
+### ケース 6: Claude Code の /config Notifications が Auto のままで動作する
 
 **手順:**
 
-1. SpecPrompt を終了する
-2. 標準ターミナルで以下を実行:
-   ```bash
-   echo '{"message":"test"}' | SPEC_PROMPT_HOOK_EVENT=notification ~/.config/spec-prompt/hooks/claude-notify.sh
-   echo $?
-   ```
+1. Claude Code で `/config` を開く
+2. Notifications が `Auto` であることを確認（変更しない）
+3. ケース 3 または 4 を実行する
 
 **期待結果:**
 
-- 終了コード 0（エラーなし）
-- 通知は表示されない（接続先がないため）
+- `TERM_PROGRAM=iTerm.app` の効果で Auto でも OSC 9 が出力され、通知が表示される
 
 **確認結果:**
 
@@ -142,6 +134,11 @@ claude ラッパースクリプトと hooks コマンドスクリプトが正し
 cd src-tauri && cargo test
 ```
 
+対象:
+- `Osc9Detector` のステートマシン（BEL 終端、ST 終端）
+- チャンク分割された OSC 9 の検出
+- OSC 9 以外のシーケンスを無視すること
+
 ### 型チェック
 
 ```bash
@@ -153,9 +150,10 @@ cd src-tauri && cargo check
 
 | ケース | 期待動作 | 確認結果 |
 |---|---|---|
-| claude がインストールされていない | ラッパーが `Error: claude not found in PATH` を表示 | |
-| cmux も同時にインストールされている | PATH の順序に依存。SpecPrompt のラッパーが先に見つかる | |
-| `--resume` フラグ付きで claude を起動 | ラッパーが `--settings` を付与しつつ素通し | |
+| OSC 9 がチャンク境界で分割される | 次のチャンクで検出が継続される | |
+| 非常に長い OSC 9 メッセージ（1KB 超） | バッファが溢れずに検出される（上限設定） | |
+| OSC 9 以外の OSC シーケンス（OSC 0 等） | 無視される | |
+| `TERM_PROGRAM=iTerm.app` が vim に影響 | vim は TERM_PROGRAM を参照するが、動作に問題なし | |
 
 ## 回帰テスト
 

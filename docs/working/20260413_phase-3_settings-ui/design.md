@@ -77,25 +77,18 @@ pub fn spawn_pty(
     shell: String,
     cwd: String,
     notification_enabled: bool,  // 追加
-    app: AppHandle,
-    manager: State<PtyManager>,
-    terminal_manager: State<TerminalManager>,
+    // ...
 ) -> Result<String, String> {
     // ...
+    // OSC 方式: notification_enabled が true の場合のみ TERM_PROGRAM を設定
     if notification_enabled {
-        if let Ok(home) = std::env::var("HOME") {
-            let wrapper_dir = format!("{}/.config/spec-prompt/bin", home);
-            if std::path::Path::new(&wrapper_dir).exists() {
-                // PATH の先頭にラッパーを追加
-                path = format!("{}:{}", wrapper_dir, path);
-                cmd.env("SPEC_PROMPT_NOTIFICATION", "1");
-            }
-        }
+        cmd.env("TERM_PROGRAM", "iTerm.app");
     }
-    cmd.env("PATH", path);
     // ...
 }
 ```
+
+OSC 9 検出はリーダースレッド側で常に動作するが、`TERM_PROGRAM` が未設定だと Claude Code が OSC 9 を出力しないため、実質的に通知が無効化される。
 
 ## 設計上の決定事項
 
@@ -103,6 +96,7 @@ pub fn spawn_pty(
 |---|---|---|
 | 設定変更は次回 PTY 起動から反映 | 既存ターミナルの環境変数は変更不可 | ターミナルを強制再起動（UX が悪い） |
 | `spawn_pty` の引数で渡す | Rust 側で状態管理しない（フロントエンドが信頼できるソース） | Tauri state で共有（複雑化） |
+| OFF 時は TERM_PROGRAM を設定しない | OSC 9 が出力されないため検出もされない（シンプル） | リーダースレッドで検出を無効化（フラグ管理が複雑） |
 
 ## 未解決事項
 

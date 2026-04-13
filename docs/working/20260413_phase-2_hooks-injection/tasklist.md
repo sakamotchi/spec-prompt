@@ -1,4 +1,4 @@
-# タスクリスト - Phase 2: hooks 注入
+# タスクリスト - Phase 2: OSC 9 検出
 
 ## 進捗サマリー
 
@@ -6,49 +6,52 @@
 |------|------|
 | 完了 | 0 |
 | 進行中 | 0 |
-| 未着手 | 5 |
+| 未着手 | 4 |
 
 ## タスク一覧
 
-### T-1: claude-notify.sh 作成
+### T-1: TERM_PROGRAM 環境変数の設定
 
-- [ ] `src-tauri/resources/claude-notify.sh` を作成
-- [ ] stdin → curl POST の動作確認（手動）
-- [ ] SpecPrompt 未起動時にエラーなく終了することを確認
+- [ ] `pty.rs` の `spawn_pty` に `cmd.env("TERM_PROGRAM", "iTerm.app")` を追加
+- [ ] SpecPrompt のターミナルで `echo $TERM_PROGRAM` → `iTerm.app` を確認
 
-### T-2: claude-wrapper.sh 作成
+### T-2: Osc9Detector の実装
 
-- [ ] `src-tauri/resources/claude-wrapper.sh` を作成
-- [ ] 本物の claude を正しく見つけることを確認
-- [ ] `SPEC_PROMPT_NOTIFICATION` 未設定時に素通しすることを確認
-- [ ] `--settings` で hooks JSON が正しく渡されることを確認
+- [ ] `notification.rs` に `Osc9Detector` 構造体を実装
+- [ ] ステートマシンで BEL 終端 (`\x07`) を検出
+- [ ] ST 終端 (`ESC \`) も検出
+- [ ] ユニットテスト作成（正常系・異常系・チャンク分割）
+- [ ] `cargo test` でパス
 
-### T-3: スクリプト配置コマンド
+### T-3: PTY リーダースレッドへの統合
 
-- [ ] `notification.rs` に `setup_notification_scripts()` を実装
-- [ ] Tauri セットアップフックから呼び出し
-- [ ] `~/.config/spec-prompt/bin/claude` が作成されることを確認
-- [ ] `~/.config/spec-prompt/hooks/claude-notify.sh` が作成されることを確認
-- [ ] 実行権限が付与されていることを確認
-- [ ] `tauri.conf.json` の `resources` にスクリプトを追加
+- [ ] `pty.rs` のリーダースレッドで `Osc9Detector::feed()` を呼び出し
+- [ ] 検出時に `send_native_notification` で通知を発火
+- [ ] フォーカス判定を適用
+- [ ] `notification.rs` の `is_app_focused` と `send_native_notification` を pub に変更
 
-### T-4: PTY 起動時の環境変数設定
+### T-4: E2E 動作確認
 
-- [ ] `pty.rs` の `spawn_pty` に環境変数設定を追加
-- [ ] `SPEC_PROMPT_NOTIFICATION=1` が設定されることを確認
-- [ ] PATH の先頭に `~/.config/spec-prompt/bin/` が追加されることを確認
+- [ ] SpecPrompt 内で `claude` を起動
+- [ ] 承認待ちで通知が表示されることを確認
+- [ ] タスク完了で通知が表示されることを確認
+- [ ] SpecPrompt フォーカス中は通知が抑制されることを確認
+- [ ] `cargo test` 全件パス
+- [ ] `npm run build` エラーなし
 
-### T-5: E2E 動作確認
+### 不要になったもの（hooks 方式から廃止）
 
-- [ ] SpecPrompt 内のターミナルで `claude` を起動
-- [ ] Claude Code が承認を要求したときに通知が表示されることを確認
-- [ ] Claude Code がタスクを完了したときに通知が表示されることを確認
-- [ ] SpecPrompt がフォーカス中は通知が抑制されることを確認
-- [ ] SpecPrompt 外のターミナルで `claude` を実行し、hooks が注入されないことを確認
+- ~~claude-wrapper.sh~~ → 削除
+- ~~claude-notify.sh~~ → 削除
+- ~~HTTP サーバー~~ → 残置（Phase 1 で実装済み、将来の拡張用）
+- ~~setup_notification_scripts~~ → 削除
+- ~~SPEC_PROMPT_NOTIFICATION 環境変数~~ → 不要
+- ~~PATH へのラッパー追加~~ → 不要
 
 ## 完了条件
 
 - [ ] 全タスクが完了
 - [ ] `cargo check` がエラーなし
-- [ ] SpecPrompt 内の claude で通知が動作する
-- [ ] SpecPrompt 外の claude に影響がない
+- [ ] `cargo test` がパス
+- [ ] SpecPrompt 内の Claude Code で通知が動作する
+- [ ] ユーザーの Claude Code 設定変更が不要であること

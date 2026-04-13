@@ -1,86 +1,76 @@
-# 要件定義書 - Phase 2: hooks 注入（ラッパースクリプト）
+# 要件定義書 - Phase 2: OSC 9 検出による通知トリガー
 
 ## 概要
 
-Phase 1 で構築した HTTP サーバー + 通知基盤に対して、Claude Code の hooks を自動注入する仕組みを構築する。cmux と同様に claude コマンドのラッパースクリプトを経由し、`--settings` フラグで hooks JSON をインライン注入する。
+Phase 1 で構築した通知基盤に対して、Claude Code が出力する OSC 9 エスケープシーケンスを PTY 出力から検出し、通知を発火するトリガーを実装する。
 
 ## 背景・目的
 
-cmux の実装分析から、hooks は `~/.claude/settings.json` に書き込むのではなく、claude コマンド起動時に `--settings` フラグで JSON をインライン渡しする方式が最も安全かつ設定不要であることが判明した。SpecPrompt のターミナル内でのみ hooks が有効になり、外部のターミナルには影響しない。
+当初は cmux と同様に hooks + ラッパースクリプト方式を検討したが、以下の理由で OSC 方式に変更する：
+
+- Claude Code は `/config` → Notifications で `iterm2`（OSC 9）を出力する機能を組み込みで持っている
+- PTY 起動時に `TERM_PROGRAM=iTerm.app` を設定すれば、Auto モードで OSC 9 が自動出力される
+- ラッパースクリプト・HTTP サーバー・PATH 操作が不要になり、実装が大幅にシンプルになる
+- ユーザーの `~/.claude/settings.json` や Claude Code の設定に一切触れない
 
 ## 要件一覧
 
 ### 機能要件
 
-#### F-1: claude-notify.sh（hooks コマンドスクリプト）
+#### F-1: PTY 起動時に TERM_PROGRAM を設定
 
-- **説明**: Claude Code が hooks イベント発火時に実行するスクリプト。stdin から JSON を読み取り、Phase 1 の HTTP エンドポイントに POST する
+- **説明**: `spawn_pty` で PTY を起動する際に `TERM_PROGRAM=iTerm.app` を設定し、Claude Code の Auto モードで OSC 9 を出力させる
 - **受け入れ条件**:
-  - [ ] stdin から JSON を読み取れる
-  - [ ] `curl` で `http://127.0.0.1:19823/claude-hook/{event}` に POST する
-  - [ ] SpecPrompt が起動していない場合でもエラーなく終了する
-  - [ ] 5 秒以内に完了する（Claude Code のデフォルトタイムアウト）
+  - [ ] SpecPrompt のターミナルで `echo $TERM_PROGRAM` → `iTerm.app` が返る
+  - [ ] Claude Code の `/config` → Notifications が Auto のまま OSC 9 が出力される
 
-#### F-2: claude-wrapper.sh（claude コマンドラッパー）
+#### F-2: PTY 出力から OSC 9 シーケンスを検出
 
-- **説明**: SpecPrompt のターミナル内で `claude` を実行した際に、`--settings` で hooks JSON を注入して本物の claude を起動するラッパー
+- **説明**: PTY 出力のリーダースレッドで `ESC ] 9 ; <message> BEL` パターンを検出し、メッセージを抽出する
 - **受け入れ条件**:
-  - [ ] `SPEC_PROMPT_NOTIFICATION` 環境変数が設定されている場合のみ hooks を注入する
-  - [ ] 環境変数が未設定の場合は本物の claude を素通しで実行する
-  - [ ] 本物の claude バイナリを PATH から正しく見つける（自分自身をスキップ）
-  - [ ] `--settings` で渡す JSON がユーザーの settings.json とマージされる
+  - [ ] `\x1b]9;...\x07` パターンを正しく検出する
+  - [ ] `\x1b]9;...\x1b\\`（ST 終端）パターンも検出する
+  - [ ] メッセージ部分を正しく抽出する
+  - [ ] OSC 9 以外のエスケープシーケンスには反応しない
+  - [ ] 検出がターミナルの表示に影響しない（パーサーは通常通り動作）
 
-#### F-3: スクリプト自動配置
+#### F-3: 検出した OSC 9 メッセージから通知を発火
 
-- **説明**: アプリ初回起動時にラッパーと hooks スクリプトを `~/.config/spec-prompt/` に配置する
+- **説明**: 検出したメッセージを Phase 1 の通知分類・送信ロジックに渡して macOS 通知を発火する
 - **受け入れ条件**:
-  - [ ] `~/.config/spec-prompt/bin/claude` が作成される
-  - [ ] `~/.config/spec-prompt/hooks/claude-notify.sh` が作成される
-  - [ ] 両ファイルに実行権限が付与される
-  - [ ] 既存ファイルがあれば上書き更新する
-
-#### F-4: PTY 起動時の環境変数設定
-
-- **説明**: `spawn_pty` で PTY を起動する際に、ラッパーが動作するための環境変数を設定する
-- **受け入れ条件**:
-  - [ ] `SPEC_PROMPT_NOTIFICATION=1` が設定される
-  - [ ] PATH の先頭に `~/.config/spec-prompt/bin/` が追加される
-  - [ ] 既存の PATH は保持される
+  - [ ] フォーカス判定が動作する（SpecPrompt フォーカス中は抑制）
+  - [ ] Phase 1 の `send_native_notification` で通知が表示される
 
 ### 非機能要件
 
-- **パフォーマンス**: ラッパースクリプトのオーバーヘッドが 100ms 以内であること
-- **安全性**: SpecPrompt 外のターミナルでは claude の動作に一切影響しないこと
-- **保守性**: スクリプトはアプリのリソースにバンドルし、バージョン管理する
+- **パフォーマンス**: OSC 検出がターミナルのレンダリングをブロックしないこと
+- **安全性**: `TERM_PROGRAM` の設定が他のコマンドに悪影響を与えないこと
+- **ゼロセットアップ**: ユーザーの操作なしに通知が動作すること
 
 ## スコープ
 
 ### 対象
 
-- claude-notify.sh の作成
-- claude-wrapper.sh の作成
-- Rust 側のスクリプト配置コマンド
-- pty.rs への環境変数追加
+- `pty.rs` への `TERM_PROGRAM` 環境変数追加
+- PTY 出力リーダースレッドへの OSC 9 検出ロジック追加
+- Phase 1 の通知送信ロジックとの接続
 
 ### 対象外
 
 - 設定 UI（Phase 3）
-- 通知 ON/OFF の制御（Phase 3）
+- hooks / ラッパースクリプト方式（廃止）
 
 ## 実装対象ファイル（予定）
 
-- `src-tauri/resources/claude-wrapper.sh` — 新規
-- `src-tauri/resources/claude-notify.sh` — 新規
-- `src-tauri/src/commands/notification.rs` — スクリプト配置関数追加
-- `src-tauri/src/commands/pty.rs` — 環境変数設定追加
-- `src-tauri/src/lib.rs` — 初回起動時のスクリプト配置呼び出し
+- `src-tauri/src/commands/pty.rs` — `TERM_PROGRAM` 設定 + OSC 9 検出
+- `src-tauri/src/commands/notification.rs` — 既存の通知送信ロジックを再利用
 
 ## 依存関係
 
-- Phase 1 の HTTP サーバー・通知基盤が完成していること
-- `curl` コマンドがユーザー環境に存在すること（macOS 標準）
+- Phase 1 の通知基盤（`send_native_notification`, `classify_notification`, `extract_message`）
 
 ## 参考資料
 
-- cmux の claude ラッパー: `/Applications/cmux.app/Contents/Resources/bin/claude`
-- `docs/local/20260413-claude-code通知機能/02_概要設計書.md`
+- OSC 9 フォーマット: `ESC ] 9 ; <message> BEL`
+- Claude Code の通知チャンネル: `/config` → Notifications → Auto / iterm2
+- Zenn 記事: https://zenn.dev/ryok/articles/claude-code-notification-ghostty-vscode

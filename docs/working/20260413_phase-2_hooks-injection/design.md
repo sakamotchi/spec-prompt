@@ -1,4 +1,4 @@
-# 設計書 - Phase 2: hooks 注入（ラッパースクリプト）
+# 設計書 - Phase 2: OSC 9 検出による通知トリガー
 
 ## アーキテクチャ
 
@@ -6,21 +6,18 @@
 
 ```
 spawn_pty (Rust)
-    │ env: SPEC_PROMPT_NOTIFICATION=1
-    │ env: PATH=~/.config/spec-prompt/bin:$PATH
+    │ env: TERM_PROGRAM=iTerm.app
     ▼
-ユーザーが "claude" を入力
-    │
+Claude Code (ターミナル内で動作)
+    │ OSC 9 エスケープシーケンスを出力
+    │ ESC ] 9 ; <message> BEL
     ▼
-~/.config/spec-prompt/bin/claude (ラッパー)
-    │ --settings '{"hooks":{...}}' を付与
+PTY 出力リーダースレッド (pty.rs)
+    │ バイト列をスキャンして OSC 9 を検出
+    │ メッセージを抽出
     ▼
-本物の claude バイナリ (hooks 付きで起動)
-    │
-    │ hooks イベント発火 → claude-notify.sh 実行
-    ▼
-claude-notify.sh
-    │ stdin → curl POST → HTTP サーバー (Phase 1)
+notification.rs (Phase 1 で実装済み)
+    │ フォーカス判定 → send_native_notification
     ▼
 macOS 通知
 ```
@@ -28,124 +25,88 @@ macOS 通知
 ### 影響範囲
 
 - **フロントエンド**: 変更なし
-- **バックエンド（Rust）**: `pty.rs` に環境変数追加、スクリプト配置コマンド追加
+- **バックエンド（Rust）**: `pty.rs` のリーダースレッドに OSC 9 検出を追加
 
 ## 実装方針
 
 ### 概要
 
-cmux の実装パターンをそのまま踏襲する。claude コマンドのラッパースクリプトを PATH の先頭に配置し、`--settings` フラグで hooks を注入する。
+PTY 出力のリーダースレッド（既存）でバイト列を読み取る際に、OSC 9 シーケンスをスキャンする。検出したメッセージは Phase 1 の `send_native_notification` に渡す。OSC 9 のバイト列はそのまま alacritty-terminal に渡され、通常のターミナル処理は妨げない。
 
-### 詳細
+### OSC 9 フォーマット
 
-1. `claude-notify.sh` を作成（stdin → curl POST）
-2. `claude-wrapper.sh` を作成（`--settings` で hooks 注入）
-3. Tauri のセットアップで `~/.config/spec-prompt/` にスクリプトを配置
-4. `spawn_pty` で環境変数 `SPEC_PROMPT_NOTIFICATION` と PATH を設定
+```
+ESC ] 9 ; <message> BEL
+\x1b  ]  9  ;  ...    \x07
 
-## スクリプト設計
-
-### claude-notify.sh
-
-```bash
-#!/bin/bash
-# SpecPrompt Claude Code notification hook
-# stdin から JSON を読み取り、HTTP サーバーに POST する
-INPUT=$(cat)
-curl -s -X POST \
-  -H "Content-Type: application/json" \
-  -d "$INPUT" \
-  "http://127.0.0.1:19823/claude-hook/${SPEC_PROMPT_HOOK_EVENT:-notification}" \
-  --connect-timeout 2 \
-  2>/dev/null || true
-echo '{}'
+または ST 終端:
+ESC ] 9 ; <message> ESC \
+\x1b  ]  9  ;  ...    \x1b  \
 ```
 
-### claude-wrapper.sh
-
-```bash
-#!/bin/bash
-# SpecPrompt claude wrapper
-# SPEC_PROMPT_NOTIFICATION が設定されている場合のみ hooks を注入
-
-find_real_claude() {
-    local self_dir
-    self_dir="$(cd "$(dirname "$0")" && pwd)"
-    local IFS=:
-    for d in $PATH; do
-        [[ "$d" == "$self_dir" ]] && continue
-        [[ -x "$d/claude" ]] && printf '%s' "$d/claude" && return 0
-    done
-    return 1
-}
-
-REAL_CLAUDE="$(find_real_claude)" || { echo "Error: claude not found in PATH" >&2; exit 127; }
-
-# SpecPrompt ターミナル外では素通し
-if [[ -z "$SPEC_PROMPT_NOTIFICATION" ]]; then
-    exec "$REAL_CLAUDE" "$@"
-fi
-
-# hooks JSON
-HOOK_CMD="SPEC_PROMPT_HOOK_EVENT=\${event} ~/.config/spec-prompt/hooks/claude-notify.sh"
-HOOKS_JSON='{"hooks":{"Notification":[{"hooks":[{"type":"command","command":"SPEC_PROMPT_HOOK_EVENT=notification ~/.config/spec-prompt/hooks/claude-notify.sh","timeout":5000}]}],"Stop":[{"hooks":[{"type":"command","command":"SPEC_PROMPT_HOOK_EVENT=stop ~/.config/spec-prompt/hooks/claude-notify.sh","timeout":5000}]}]}}'
-
-exec "$REAL_CLAUDE" --settings "$HOOKS_JSON" "$@"
-```
-
-## PTY 環境変数設定
-
-### pty.rs の変更
+### OSC 9 検出のステートマシン
 
 ```rust
-// spawn_pty 内、既存の PATH 設定の後に追加
-
-// 通知機能: ラッパースクリプトを PATH の先頭に追加
-if let Ok(home) = std::env::var("HOME") {
-    let wrapper_dir = format!("{}/.config/spec-prompt/bin", home);
-    if std::path::Path::new(&wrapper_dir).exists() {
-        let current_path = std::env::var("PATH").unwrap_or_default();
-        cmd.env("PATH", format!("{}:{}", wrapper_dir, current_path));
-        cmd.env("SPEC_PROMPT_NOTIFICATION", "1");
-    }
+enum Osc9State {
+    Normal,          // 通常
+    Esc,             // ESC を検出
+    OscStart,        // ESC ] を検出
+    Osc9Semi,        // ESC ] 9 ; を検出 → メッセージ蓄積中
 }
 ```
 
-## スクリプト配置コマンド
+バイトごとにステートを遷移し、BEL (`\x07`) または ESC `\` で OSC 9 の完了を検出する。
 
-### notification.rs への追加
+## データ構造
+
+### OSC 9 パーサー（Rust）
 
 ```rust
-/// アプリリソースからスクリプトを ~/.config/spec-prompt/ にコピーする
-pub fn setup_notification_scripts(app: &AppHandle) -> Result<(), String> {
-    let home = std::env::var("HOME").map_err(|e| e.to_string())?;
-    let base = format!("{}/.config/spec-prompt", home);
-
-    // ディレクトリ作成
-    std::fs::create_dir_all(format!("{}/bin", base)).map_err(|e| e.to_string())?;
-    std::fs::create_dir_all(format!("{}/hooks", base)).map_err(|e| e.to_string())?;
-
-    // リソースからコピー
-    let resource_dir = app.path().resource_dir().map_err(|e| e.to_string())?;
-    copy_script(&resource_dir, &base, "claude-wrapper.sh", "bin/claude")?;
-    copy_script(&resource_dir, &base, "claude-notify.sh", "hooks/claude-notify.sh")?;
-
-    Ok(())
+pub struct Osc9Detector {
+    state: Osc9State,
+    buffer: Vec<u8>,
 }
 
-fn copy_script(resource_dir: &Path, base: &str, src: &str, dst: &str) -> Result<(), String> {
-    let src_path = resource_dir.join(src);
-    let dst_path = format!("{}/{}", base, dst);
-    std::fs::copy(&src_path, &dst_path).map_err(|e| e.to_string())?;
+impl Osc9Detector {
+    pub fn new() -> Self { ... }
 
-    // chmod +x
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::PermissionsExt;
-        std::fs::set_permissions(&dst_path, std::fs::Permissions::from_mode(0o755))
-            .map_err(|e| e.to_string())?;
+    /// バイト列をスキャンし、OSC 9 メッセージを検出したら返す。
+    /// 複数の OSC 9 が含まれる場合は Vec で返す。
+    pub fn feed(&mut self, data: &[u8]) -> Vec<String> { ... }
+}
+```
+
+## pty.rs の変更
+
+### TERM_PROGRAM 環境変数
+
+```rust
+// spawn_pty 内
+cmd.env("TERM_PROGRAM", "iTerm.app");
+```
+
+### リーダースレッドへの OSC 9 検出追加
+
+```rust
+// 既存のリーダースレッド内
+let mut osc9 = Osc9Detector::new();
+
+loop {
+    match reader.read(&mut buf) {
+        Ok(0) => break,
+        Ok(n) => {
+            // OSC 9 検出
+            for msg in osc9.feed(&buf[..n]) {
+                if !is_app_focused(&app) {
+                    send_native_notification(&app, "SpecPrompt / Claude Code", &msg);
+                }
+            }
+
+            // 既存の処理（xterm.js + alacritty-terminal）
+            // ...
+        }
+        Err(_) => break,
     }
-    Ok(())
 }
 ```
 
@@ -153,11 +114,10 @@ fn copy_script(resource_dir: &Path, base: &str, src: &str, dst: &str) -> Result<
 
 | 決定事項 | 理由 | 代替案 |
 |---|---|---|
-| ラッパー + `--settings` 方式 | settings.json への書き込み不要、cmux と同じ方式で実績あり | settings.json への直接書き込み（既存設定破壊リスク） |
-| 環境変数 `SPEC_PROMPT_NOTIFICATION` で制御 | SpecPrompt 外では自動的に無効化 | 設定ファイルで制御（起動前に読む必要がある） |
-| スクリプトを `~/.config/spec-prompt/` に配置 | XDG 準拠、アプリ固有の設定ディレクトリ | `/tmp/`（再起動で消える）、アプリバンドル内（書き換え不可） |
+| OSC 9 方式 | ゼロセットアップ、ラッパー不要、Claude Code 組み込み機能を活用 | hooks + ラッパー（検証で問題が発生、複雑） |
+| `TERM_PROGRAM=iTerm.app` | Claude Code の Auto モードで OSC 9 を出力させるため | ユーザーに `/config` 変更を要求（手動設定が必要） |
+| バイト単位のステートマシン | PTY 出力はチャンク分割されるため、バッファ境界をまたぐ OSC 9 にも対応 | 正規表現（チャンク分割に弱い） |
 
 ## 未解決事項
 
-- [ ] cmux がインストールされている場合のラッパー競合（cmux のラッパーと SpecPrompt のラッパーが両方 PATH にある場合）
-- [ ] claude コマンドが存在しない場合のエラーハンドリング
+- [ ] `TERM_PROGRAM=iTerm.app` が他のツール（vim, tmux 等）に影響しないか確認
