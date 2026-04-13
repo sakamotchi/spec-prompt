@@ -13,6 +13,7 @@ export interface AppearanceSettings {
   contentFontSize: number
   terminalFontFamily: string
   terminalFontSize: number
+  notificationEnabled: boolean
 }
 
 export const DEFAULT_SETTINGS: AppearanceSettings = {
@@ -21,6 +22,7 @@ export const DEFAULT_SETTINGS: AppearanceSettings = {
   contentFontSize: 16,
   terminalFontFamily: "ui-monospace, 'Cascadia Code', 'Menlo', 'Consolas', monospace",
   terminalFontSize: 14,
+  notificationEnabled: true,
 }
 
 interface SettingsState extends AppearanceSettings {
@@ -30,6 +32,7 @@ interface SettingsState extends AppearanceSettings {
   setContentFontSize: (size: number) => void
   setTerminalFontFamily: (family: string) => void
   setTerminalFontSize: (size: number) => void
+  setNotificationEnabled: (enabled: boolean) => void
   setLanguage: (lang: Language) => void
   loadSettings: () => Promise<void>
   saveSettings: () => Promise<void>
@@ -71,6 +74,10 @@ export const useSettingsStore = create<SettingsState>()((set, get) => ({
     set({ terminalFontSize: size })
     get().saveSettings()
   },
+  setNotificationEnabled: (enabled) => {
+    set({ notificationEnabled: enabled })
+    get().saveSettings()
+  },
 
   setLanguage: (lang) => {
     set({ language: lang })
@@ -79,26 +86,32 @@ export const useSettingsStore = create<SettingsState>()((set, get) => ({
   },
 
   loadSettings: async () => {
-    const s = await tauriApi.getAppearance()
+    // Rust 側は snake_case の JSON を返す
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const s: any = await tauriApi.getAppearance()
     const mapped: AppearanceSettings = {
       theme: (s.theme as Theme) ?? 'dark',
       contentFontFamily: s.content_font_family,
       contentFontSize: s.content_font_size,
       terminalFontFamily: s.terminal_font_family,
       terminalFontSize: s.terminal_font_size,
+      notificationEnabled: s.notification_enabled ?? true,
     }
     set(mapped)
     applyTheme(mapped.theme)
   },
 
   saveSettings: async () => {
-    const { theme, contentFontFamily, contentFontSize, terminalFontFamily, terminalFontSize } = get()
+    const { theme, contentFontFamily, contentFontSize, terminalFontFamily, terminalFontSize, notificationEnabled } = get()
+    // Rust 側は snake_case の JSON を期待する
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     await tauriApi.saveAppearance({
       theme,
       content_font_family: contentFontFamily,
       content_font_size: contentFontSize,
       terminal_font_family: terminalFontFamily,
       terminal_font_size: terminalFontSize,
-    })
+      notification_enabled: notificationEnabled,
+    } as any)
   },
 }))

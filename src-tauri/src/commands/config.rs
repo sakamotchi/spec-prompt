@@ -10,6 +10,12 @@ pub struct AppearanceSettings {
     pub content_font_size: u8,
     pub terminal_font_family: String,
     pub terminal_font_size: u8,
+    #[serde(default = "default_true")]
+    pub notification_enabled: bool,
+}
+
+fn default_true() -> bool {
+    true
 }
 
 impl Default for AppearanceSettings {
@@ -20,6 +26,7 @@ impl Default for AppearanceSettings {
             content_font_size: 16,
             terminal_font_family: "Geist Mono".to_string(),
             terminal_font_size: 14,
+            notification_enabled: true,
         }
     }
 }

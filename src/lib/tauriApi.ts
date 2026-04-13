@@ -53,8 +53,8 @@ export interface CellFlags {
 
 export const tauriApi = {
   // PTY
-  spawnPty: (shell: string, cwd: string): Promise<string> =>
-    invoke("spawn_pty", { shell, cwd }),
+  spawnPty: (shell: string, cwd: string, notificationEnabled: boolean): Promise<string> =>
+    invoke("spawn_pty", { shell, cwd, notificationEnabled }),
 
   writePty: (id: string, data: string): Promise<void> =>
     invoke("write_pty", { id, data }),
