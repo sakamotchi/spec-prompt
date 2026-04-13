@@ -42,7 +42,8 @@ export function TerminalPanel({ tabId, cwd = "/" }: TerminalPanelProps) {
       }
 
       try {
-        const id = await tauriApi.spawnPty("/bin/zsh", cwd)
+        const notificationEnabled = useSettingsStore.getState().notificationEnabled
+        const id = await tauriApi.spawnPty("/bin/zsh", cwd, notificationEnabled)
         if (cancelled) {
           tauriApi.closePty(id).catch(console.error)
           return

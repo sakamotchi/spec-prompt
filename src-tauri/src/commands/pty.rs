@@ -38,6 +38,7 @@ impl PtyManager {
 pub fn spawn_pty(
     shell: String,
     cwd: String,
+    notification_enabled: bool,
     app: AppHandle,
     manager: State<PtyManager>,
     terminal_manager: State<TerminalManager>,
@@ -97,9 +98,11 @@ pub fn spawn_pty(
         cmd.env("PATH", path);
     }
 
-    // Claude Code の Auto モードで OSC 9 通知シーケンスを出力させるため、
-    // ターミナル種別を iTerm2 として報告する
-    cmd.env("TERM_PROGRAM", "iTerm.app");
+    // 通知 ON の場合のみ TERM_PROGRAM を設定し、
+    // Claude Code の Auto モードで OSC 9 通知シーケンスを出力させる
+    if notification_enabled {
+        cmd.env("TERM_PROGRAM", "iTerm.app");
+    }
 
     // TERM が未設定だと zsh がバックスペースの描画シーケンスを正しく送れず
     // xterm.js 上でスペースとして表示されるため、明示的にフォールバックを設定する

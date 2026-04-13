@@ -16,6 +16,8 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
   const setTheme = useSettingsStore((s) => s.setTheme)
   const language = useSettingsStore((s) => s.language)
   const setLanguage = useSettingsStore((s) => s.setLanguage)
+  const notificationEnabled = useSettingsStore((s) => s.notificationEnabled)
+  const setNotificationEnabled = useSettingsStore((s) => s.setNotificationEnabled)
   const contentFontFamily = useSettingsStore((s) => s.contentFontFamily)
   const setContentFontFamily = useSettingsStore((s) => s.setContentFontFamily)
   const contentFontSize = useSettingsStore((s) => s.contentFontSize)
@@ -155,6 +157,36 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
                   </button>
                 ))}
               </div>
+            </section>
+
+            {/* 通知セクション */}
+            <section>
+              <h3 className="text-xs font-semibold text-[var(--color-text-muted)] uppercase tracking-wider mb-3">
+                {t('settings.section.notification', 'Notification')}
+              </h3>
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-[var(--color-text-muted)]">
+                  {t('settings.label.claudeNotification', 'Claude Code 通知')}
+                </span>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={notificationEnabled}
+                  onClick={() => setNotificationEnabled(!notificationEnabled)}
+                  className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors ${
+                    notificationEnabled ? 'bg-[var(--color-accent)]' : 'bg-[var(--color-border)]'
+                  }`}
+                >
+                  <span
+                    className={`pointer-events-none inline-block h-4 w-4 rounded-full bg-white shadow transition-transform ${
+                      notificationEnabled ? 'translate-x-4' : 'translate-x-0'
+                    }`}
+                  />
+                </button>
+              </div>
+              <p className="text-[10px] text-[var(--color-text-muted)] mt-1.5">
+                {t('settings.hint.notification', '次回のターミナル起動から反映されます')}
+              </p>
             </section>
           </div>
         </Dialog.Content>
