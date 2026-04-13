@@ -5,6 +5,7 @@ import remarkGfm from 'remark-gfm'
 import remarkRehype from 'remark-rehype'
 import rehypeShiki from '@shikijs/rehype'
 import rehypeStringify from 'rehype-stringify'
+import { SHIKI_LANGS } from './shikiLangs'
 
 // シングルトンでプロセッサーを構築（初回呼び出し時に非同期初期化）
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -26,8 +27,7 @@ async function getProcessor(shikiTheme: string) {
         .use(remarkRehype, { allowDangerousHtml: true })
         .use(rehypeShiki, {
           theme: shikiTheme,
-          // Mermaid は Shiki でハイライトせず、そのままの language-mermaid クラスを維持する
-          langs: [],
+          langs: SHIKI_LANGS,
         })
         .use(rehypeStringify, { allowDangerousHtml: true })
     })()

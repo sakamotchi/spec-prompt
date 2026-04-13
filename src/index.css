@@ -132,9 +132,13 @@ body,
   overflow: auto;
 }
 
-/* Shiki が生成する pre にパディングを付与 */
+/* Shiki が生成する pre にパディングを付与。
+   CodeViewer 用の .shiki { min-height: 100% } を打ち消す。
+   Shiki のインライン background-color を上書きして周囲と区別する */
 .markdown-preview pre.shiki {
   padding: 1em;
+  min-height: 0;
+  background-color: var(--color-bg-elevated) !important;
 }
 
 .markdown-preview hr {
