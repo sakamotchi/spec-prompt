@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Plus, X, Columns2 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
-import { useTerminalStore } from '../../stores/terminalStore'
+import { useTerminalStore, computeDisplayTitle } from '../../stores/terminalStore'
 import { useAppStore } from '../../stores/appStore'
 import { TerminalPanel } from './TerminalPanel'
 
@@ -100,12 +100,14 @@ function TerminalPane({ pane }: TerminalPaneProps) {
         <div className="flex items-center flex-1 overflow-x-auto min-w-0">
           {group.tabs.map((tab) => {
             const isActive = tab.id === group.activeTabId
+            const display = computeDisplayTitle(tab)
             return (
               <button
                 key={tab.id}
                 draggable
                 onDragStart={(e) => handleDragStart(e, tab.id)}
                 onClick={() => setActiveTab(tab.id, pane)}
+                title={display}
                 className="flex items-center gap-1.5 h-full px-3 text-xs flex-shrink-0 transition-colors outline-none group cursor-grab active:cursor-grabbing"
                 style={{
                   color: isActive ? 'var(--color-text-primary)' : 'var(--color-text-muted)',
@@ -114,7 +116,7 @@ function TerminalPane({ pane }: TerminalPaneProps) {
                     : '2px solid transparent',
                 }}
               >
-                <span>{tab.title}</span>
+                <span className="max-w-[12rem] truncate">{display}</span>
                 {group.tabs.length > 1 && (
                   <span
                     onClick={(e) => {

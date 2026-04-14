@@ -129,7 +129,10 @@ pub fn spawn_pty(
 
     // TerminalInstance を生成・登録
     use crate::terminal::instance::TerminalInstance;
-    terminal_manager.insert(id.clone(), TerminalInstance::new(80, 24));
+    terminal_manager.insert(
+        id.clone(),
+        TerminalInstance::new(80, 24, app.clone(), id.clone()),
+    );
 
     // PTY 出力を Tauri イベントとしてフロントエンドにストリーミングするスレッド
     // AppHandle を clone してスレッドに移動し、内部で TerminalManager を取得する
