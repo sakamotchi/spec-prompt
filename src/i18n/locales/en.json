@@ -66,6 +66,11 @@
       "newTab": "New Terminal",
       "split": "Split Terminal"
     },
+    "tabMenu": {
+      "rename": "Rename Tab",
+      "unpinTitle": "Restore Automatic Title",
+      "close": "Close Tab"
+    },
     "error": {
       "ptyStart": "PTY startup error: {{error}}"
     }

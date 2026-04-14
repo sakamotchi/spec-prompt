@@ -1,6 +1,59 @@
+use std::collections::HashMap;
+use std::sync::Mutex;
+
 use serde::Deserialize;
 use tauri::{AppHandle, Manager};
 use tauri_plugin_notification::NotificationExt;
+
+/// pty_id → 表示タイトルのキャッシュ。OSC 9 通知発火時にタイトル差し込みに利用する。
+/// フロントから `set_pty_display_title` コマンドで書き込み、`close_pty` で削除される。
+pub struct DisplayTitleCache {
+    map: Mutex<HashMap<String, String>>,
+}
+
+impl DisplayTitleCache {
+    pub fn new() -> Self {
+        Self {
+            map: Mutex::new(HashMap::new()),
+        }
+    }
+
+    pub fn set(&self, pty_id: &str, title: &str) {
+        if let Ok(mut guard) = self.map.lock() {
+            guard.insert(pty_id.to_string(), title.to_string());
+        }
+    }
+
+    pub fn get(&self, pty_id: &str) -> Option<String> {
+        self.map
+            .lock()
+            .ok()
+            .and_then(|g| g.get(pty_id).cloned())
+    }
+
+    pub fn remove(&self, pty_id: &str) {
+        if let Ok(mut guard) = self.map.lock() {
+            guard.remove(pty_id);
+        }
+    }
+}
+
+impl Default for DisplayTitleCache {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+/// フロントから呼び出してタブの表示タイトルを Rust 側キャッシュへ同期する。
+#[tauri::command]
+pub fn set_pty_display_title(
+    pty_id: String,
+    title: String,
+    cache: tauri::State<DisplayTitleCache>,
+) -> Result<(), String> {
+    cache.set(&pty_id, &title);
+    Ok(())
+}
 
 /// Claude Code hooks から受け取る JSON（フィールドはすべて Optional）
 #[derive(Debug, Clone, Deserialize, Default)]
@@ -517,6 +570,47 @@ mod tests {
         let msgs = d.feed(&input);
         // 上限超過でリセットされるため空
         assert!(msgs.is_empty());
+    }
+
+    // --- DisplayTitleCache tests ---
+
+    #[test]
+    fn display_title_cache_set_and_get() {
+        let cache = DisplayTitleCache::new();
+        cache.set("pty-0", "Terminal 1");
+        assert_eq!(cache.get("pty-0").as_deref(), Some("Terminal 1"));
+    }
+
+    #[test]
+    fn display_title_cache_overwrite() {
+        let cache = DisplayTitleCache::new();
+        cache.set("pty-0", "Terminal 1");
+        cache.set("pty-0", "renamed");
+        assert_eq!(cache.get("pty-0").as_deref(), Some("renamed"));
+    }
+
+    #[test]
+    fn display_title_cache_remove() {
+        let cache = DisplayTitleCache::new();
+        cache.set("pty-0", "Terminal 1");
+        cache.remove("pty-0");
+        assert_eq!(cache.get("pty-0"), None);
+    }
+
+    #[test]
+    fn display_title_cache_unknown_key_returns_none() {
+        let cache = DisplayTitleCache::new();
+        assert_eq!(cache.get("missing"), None);
+    }
+
+    #[test]
+    fn display_title_cache_multiple_keys_independent() {
+        let cache = DisplayTitleCache::new();
+        cache.set("pty-0", "A");
+        cache.set("pty-1", "B");
+        cache.remove("pty-0");
+        assert_eq!(cache.get("pty-0"), None);
+        assert_eq!(cache.get("pty-1").as_deref(), Some("B"));
     }
 
     #[test]

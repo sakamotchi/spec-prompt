@@ -66,6 +66,11 @@
       "newTab": "新しいターミナルを開く",
       "split": "ターミナルを左右分割"
     },
+    "tabMenu": {
+      "rename": "タブ名を変更",
+      "unpinTitle": "自動タイトルに戻す",
+      "close": "タブを閉じる"
+    },
     "error": {
       "ptyStart": "PTY 起動エラー: {{error}}"
     }

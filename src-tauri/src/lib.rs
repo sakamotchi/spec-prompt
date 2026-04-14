@@ -8,7 +8,9 @@ use commands::filesystem::{
     create_dir, create_file, delete_path, open_in_editor, read_dir, read_file, rename_path,
     write_file,
 };
-use commands::notification::{send_notification, start_hook_server};
+use commands::notification::{
+    send_notification, set_pty_display_title, start_hook_server, DisplayTitleCache,
+};
 use commands::pty::{close_pty, resize_pty, resize_terminal, scroll_terminal, spawn_pty, write_pty, PtyManager};
 use terminal::TerminalManager;
 
@@ -21,6 +23,7 @@ pub fn run() {
         .plugin(tauri_plugin_notification::init())
         .manage(PtyManager::new())
         .manage(TerminalManager::new())
+        .manage(DisplayTitleCache::new())
         .setup(|app| {
             start_hook_server(app.handle().clone());
             Ok(())
@@ -47,6 +50,7 @@ pub fn run() {
             load_font_bytes,
             git_status,
             send_notification,
+            set_pty_display_title,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

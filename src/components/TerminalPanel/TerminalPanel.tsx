@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { tauriApi } from "../../lib/tauriApi";
-import { useTerminalStore } from "../../stores/terminalStore";
+import { useTerminalStore, computeDisplayTitle } from "../../stores/terminalStore";
 import { useSettingsStore } from "../../stores/settingsStore";
 import { TerminalRenderer } from "./TerminalRenderer";
 
@@ -51,6 +51,14 @@ export function TerminalPanel({ tabId, cwd = "/" }: TerminalPanelProps) {
         activePtyId = id
         useTerminalStore.getState().setPtyId(tabId, id)
         setRendererPtyId(id)
+
+        // OS 通知タイトルに差し込むため、Rust 側キャッシュへ表示タイトルを同期
+        const currentTab = getTab()
+        if (currentTab) {
+          tauriApi
+            .setPtyDisplayTitle(id, computeDisplayTitle(currentTab))
+            .catch(console.error)
+        }
       } catch (err) {
         console.error('PTY spawn failed:', err)
       }

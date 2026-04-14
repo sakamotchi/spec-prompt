@@ -6,7 +6,13 @@ import { PathPalette } from '../PathPalette'
 import { ShortcutsModal } from '../KeyboardShortcuts/ShortcutsModal'
 import { useAppStore } from '../../stores/appStore'
 import { useContentStore } from '../../stores/contentStore'
-import { useTerminalStore } from '../../stores/terminalStore'
+import {
+  useTerminalStore,
+  computeDisplayTitle,
+  type TerminalGroup,
+} from '../../stores/terminalStore'
+import { tauriApi } from '../../lib/tauriApi'
+import { getCurrentWindow } from '@tauri-apps/api/window'
 
 export function AppLayout() {
   const [paletteOpen, setPaletteOpen] = useState(false)
@@ -115,6 +121,89 @@ export function AppLayout() {
     // キャプチャフェーズで登録することで xterm.js の keydown ハンドラより先に実行する
     window.addEventListener('keydown', handler, true)
     return () => window.removeEventListener('keydown', handler, true)
+  }, [])
+
+  // OSC 0/1/2 由来のタイトル変化を購読し、表示タイトルの変化を Rust 側キャッシュへ同期する
+  useEffect(() => {
+    let disposed = false
+    let unlisten: (() => void) | null = null
+
+    tauriApi
+      .onTerminalTitleChanged(({ pty_id, title }) => {
+        useTerminalStore.getState().setOscTitle(pty_id, title)
+      })
+      .then((fn) => {
+        if (disposed) {
+          fn()
+        } else {
+          unlisten = fn
+        }
+      })
+      .catch(console.error)
+
+    // 表示タイトル（computeDisplayTitle）が変化した ptyId をまとめて Rust に同期する
+    const unsubscribe = useTerminalStore.subscribe((state, prev) => {
+      const syncPane = (cur: TerminalGroup, old: TerminalGroup) => {
+        for (const tab of cur.tabs) {
+          if (!tab.ptyId) continue
+          const oldTab = old.tabs.find((t) => t.id === tab.id)
+          const newDisp = computeDisplayTitle(tab)
+          const oldDisp = oldTab ? computeDisplayTitle(oldTab) : null
+          if (newDisp !== oldDisp) {
+            tauriApi.setPtyDisplayTitle(tab.ptyId, newDisp).catch(console.error)
+          }
+        }
+      }
+      syncPane(state.primary, prev.primary)
+      syncPane(state.secondary, prev.secondary)
+    })
+
+    return () => {
+      disposed = true
+      if (unlisten) unlisten()
+      unsubscribe()
+    }
+  }, [])
+
+  // 通知発火時の未読マーク付与と、アプリフォーカス復帰時のアクティブタブのマーク解除
+  useEffect(() => {
+    let disposed = false
+    let unlistenNotif: (() => void) | null = null
+    let unlistenFocus: (() => void) | null = null
+
+    tauriApi
+      .onClaudeNotificationFired(({ pty_id }) => {
+        useTerminalStore.getState().markUnread(pty_id)
+      })
+      .then((fn) => {
+        if (disposed) fn()
+        else unlistenNotif = fn
+      })
+      .catch(console.error)
+
+    getCurrentWindow()
+      .onFocusChanged(({ payload: focused }) => {
+        if (!focused) return
+        const state = useTerminalStore.getState()
+        for (const pane of ['primary', 'secondary'] as const) {
+          const group = state[pane]
+          const active = group.tabs.find((t) => t.id === group.activeTabId)
+          if (active?.hasUnreadNotification) {
+            state.clearUnread(active.id)
+          }
+        }
+      })
+      .then((fn) => {
+        if (disposed) fn()
+        else unlistenFocus = fn
+      })
+      .catch(console.error)
+
+    return () => {
+      disposed = true
+      if (unlistenNotif) unlistenNotif()
+      if (unlistenFocus) unlistenFocus()
+    }
   }, [])
 
   return (
