@@ -180,6 +180,8 @@ pub fn spawn_pty(
                 Err(_) => break,
             }
         }
+        // シェル終了 (exit) 等で PTY が閉じたことをフロントへ通知する
+        let _ = app.emit("pty-exited", serde_json::json!({ "id": pty_id.clone() }));
     });
 
     manager.instances.lock().unwrap().insert(

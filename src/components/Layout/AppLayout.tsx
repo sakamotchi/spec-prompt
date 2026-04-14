@@ -206,6 +206,27 @@ export function AppLayout() {
     }
   }, [])
 
+  // PTY 終了イベントを購読し、該当タブを自動で閉じる（最後の 1 枚はシェルを再起動）
+  useEffect(() => {
+    let disposed = false
+    let unlisten: (() => void) | null = null
+
+    tauriApi
+      .onPtyExited(({ id }) => {
+        useTerminalStore.getState().handlePtyExited(id)
+      })
+      .then((fn) => {
+        if (disposed) fn()
+        else unlisten = fn
+      })
+      .catch(console.error)
+
+    return () => {
+      disposed = true
+      if (unlisten) unlisten()
+    }
+  }, [])
+
   return (
     <div className="flex h-full w-full bg-[var(--color-bg-base)]">
       <SplitPane direction="horizontal" defaultSize={240} minSize={160} maxSize={480}>

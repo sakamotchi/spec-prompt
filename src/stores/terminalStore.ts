@@ -28,6 +28,8 @@ interface TerminalState {
 
   addTab: (pane: 'primary' | 'secondary') => void
   closeTab: (id: string, pane: 'primary' | 'secondary') => void
+  /** PTY プロセス終了（exit など）時にタブを自動で閉じる／最後の 1 枚なら作り直す */
+  handlePtyExited: (ptyId: string) => void
   setActiveTab: (id: string, pane: 'primary' | 'secondary') => void
   setPtyId: (tabId: string, ptyId: string) => void
   setOscTitle: (ptyId: string, rawTitle: string | null) => void
@@ -107,6 +109,32 @@ export const useTerminalStore = create<TerminalState>((set) => ({
           activeTabId: group.activeTabId === id ? fallback : group.activeTabId,
         },
       }
+    }),
+
+  handlePtyExited: (ptyId) =>
+    set((state) => {
+      const updatePane = (pane: 'primary' | 'secondary') => {
+        const group = state[pane]
+        const idx = group.tabs.findIndex((t) => t.ptyId === ptyId)
+        if (idx < 0) return null
+        if (group.tabs.length <= 1) {
+          // 最後の 1 枚は削除せず、新しい空タブに差し替えてシェルを再起動させる
+          const fresh = makeTab(1)
+          return {
+            [pane]: { tabs: [fresh], activeTabId: fresh.id },
+          }
+        }
+        const newTabs = group.tabs.filter((_, i) => i !== idx)
+        const closedId = group.tabs[idx].id
+        const fallback = newTabs[Math.max(0, idx - 1)].id
+        return {
+          [pane]: {
+            tabs: newTabs,
+            activeTabId: group.activeTabId === closedId ? fallback : group.activeTabId,
+          },
+        }
+      }
+      return updatePane('primary') ?? updatePane('secondary') ?? state
     }),
 
   setActiveTab: (id, pane) =>

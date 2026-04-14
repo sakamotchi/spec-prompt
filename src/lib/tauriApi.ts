@@ -62,6 +62,11 @@ export interface ClaudeNotificationFiredPayload {
   pty_id: string;
 }
 
+// pty-exited イベントの型定義（シェル終了などで PTY の読取ループが終了したタイミング）
+export interface PtyExitedPayload {
+  id: string;
+}
+
 export const tauriApi = {
   // PTY
   spawnPty: (shell: string, cwd: string, notificationEnabled: boolean): Promise<string> =>
@@ -103,6 +108,9 @@ export const tauriApi = {
     listen<ClaudeNotificationFiredPayload>("claude-notification-fired", (event) =>
       callback(event.payload),
     ),
+
+  onPtyExited: (callback: (payload: PtyExitedPayload) => void): Promise<UnlistenFn> =>
+    listen<PtyExitedPayload>("pty-exited", (event) => callback(event.payload)),
 
   // Filesystem
   readDir: (path: string): Promise<FileNode[]> =>
