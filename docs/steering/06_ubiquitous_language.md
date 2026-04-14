@@ -1,8 +1,8 @@
 # ユビキタス言語定義書
 
-**バージョン**: 1.0
+**バージョン**: 1.1
 **作成日**: 2026年3月28日
-**最終更新**: 2026年3月28日
+**最終更新**: 2026年4月14日
 
 ---
 
@@ -59,6 +59,13 @@
 | PTY出力 | PTY Output | PTYから受け取るシェルの出力データ | `ptyOutput` |
 | リサイズ | Resize | ターミナルのサイズ変更操作（列数・行数の更新） | `resizePty()` |
 | xterm.js | xterm.js | ブラウザで動作するターミナルエミュレータライブラリ | `Terminal` (xterm) |
+| alacritty_terminal | alacritty_terminal | Rust 側で OSC・グリッド解析に使うターミナルパーサクレート | `terminal/` |
+| OSC タイトル | OSC Title | OSC 0/1/2 で受信した動的タブタイトル | `oscTitle: string \| null` |
+| 手動タイトル | Manual Title | ユーザーが明示的にリネームしたタブ名 | `manualTitle: string \| null` |
+| ピン留め | Pinned | 手動タイトルを表示に優先し OSC 更新を無視する状態 | `pinned: boolean` |
+| 表示タイトル | Display Title | 算出後のタブ表示名（pinned manualTitle > oscTitle > fallbackTitle） | `computeDisplayTitle()` |
+| 未読通知 | Unread Notification | 通知発火後、タブが非アクティブなままであることを示すフラグ | `hasUnreadNotification: boolean` |
+| PTY 終了 | PTY Exited | シェルが終了し PTY が切断された状態。タブ自動クローズの契機 | `"pty-exited"` イベント |
 
 ### 2.5 分割表示（Split Pane）
 
@@ -69,7 +76,19 @@
 | ペイン | Pane | 分割表示の1つの区画 | `Pane` |
 | アクティブペイン | Active Pane | 現在フォーカスされているペイン | `activePaneId: string` |
 
-### 2.6 パス入力支援（Path Insertion）
+### 2.6 Claude Code 通知（Notification）
+
+| 用語 | 英語表記 | 定義 | コード上の表現 |
+|------|---------|------|---------------|
+| Claude Code 通知 | Claude Code Notification | Claude Code などの AI CLI 処理状況を OS ネイティブ通知で知らせる機能 | `send_notification()` |
+| OSC 9 | OSC 9 | `ESC ] 9 ; <msg> BEL` 形式のエスケープシーケンス。通知メッセージ本体を運ぶ | - |
+| HTTP フックサーバ | Hook Server | `127.0.0.1:19823` で Claude Code hook を受信するローカルサーバ | `start_hook_server()` |
+| 通知種別 | Notification Type | Permission / Completed / Error / Waiting / Attention の分類 | `NotificationType` |
+| 発火元タブ | Source Tab | 通知を発火した PTY に紐づくターミナルタブ | `pty_id` |
+| 表示タイトルキャッシュ | Display Title Cache | 発火元タブ名を Rust 側で引くための `ptyId -> title` マップ | `DisplayTitleCache` |
+| 通知 ON/OFF | Notification Enabled | 通知の有効/無効設定 | `appearance.notification_enabled` |
+
+### 2.7 パス入力支援（Path Insertion）
 
 | 用語 | 英語表記 | 定義 | コード上の表現 |
 |------|---------|------|---------------|
@@ -124,10 +143,11 @@
 | 用語 | 英語表記 | 定義 | コード上の表現 |
 |------|---------|------|---------------|
 | 設定ファイル | Config File | アプリ設定を保存するJSONファイル（~/.config/spec-prompt/config.json） | `Config` |
-| シェル設定 | Shell Config | ターミナルで使用するシェルの設定 | `terminal.shell: string` |
-| フォントサイズ設定 | Font Size Config | ターミナルのフォントサイズ設定 | `terminal.fontSize: number` |
-| カラースキーム | Color Scheme | ターミナルの配色テーマ | `terminal.colorScheme: string` |
-| Mermaid有効設定 | Mermaid Enabled | Mermaidダイアグラムのレンダリング有効/無効 | `preview.mermaidEnabled: boolean` |
+| 外観設定 | Appearance Settings | テーマ・フォント・通知 ON/OFF をまとめた設定セクション | `AppearanceSettings` |
+| テーマ | Theme | ダーク/ライトの配色テーマ | `appearance.theme: string` |
+| コンテンツフォント | Content Font | マークダウン／コード表示で使うフォント | `appearance.content_font_family` |
+| ターミナルフォント | Terminal Font | xterm.js で使うフォント | `appearance.terminal_font_family` |
+| 通知 ON/OFF | Notification Enabled | Claude Code 通知の有効/無効 | `appearance.notification_enabled` |
 
 ---
 
@@ -183,6 +203,9 @@
 | PR | Pull Request | プルリクエスト |
 | WBS | Work Breakdown Structure | 作業分解構造 |
 | POC | Proof of Concept | 技術検証 |
+| OSC | Operating System Command | ターミナルで OS 連携を行うエスケープシーケンス（OSC 0/1/2/9 等） |
+| CR | Carriage Return | `\r`。Enter キーで送られる改行コード（コマンド実行） |
+| LF | Line Feed | `\n`。Shift+Enter で送られる改行コード（Claude Code 等で改行挿入） |
 
 ---
 
@@ -191,3 +214,4 @@
 | 日付 | バージョン | 変更内容 | 作成者 |
 |------|----------|---------|--------|
 | 2026-03-28 | 1.0 | 初版作成 | - |
+| 2026-04-14 | 1.1 | Claude Code 通知・OSC タイトル・手動リネーム・未読通知・alacritty_terminal・外観設定の用語を追加 | - |

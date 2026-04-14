@@ -1,8 +1,8 @@
 # 機能設計書
 
-**バージョン**: 1.0
+**バージョン**: 1.2
 **作成日**: 2026年3月28日
-**最終更新**: 2026年3月28日
+**最終更新**: 2026年4月14日
 
 ---
 
@@ -16,6 +16,7 @@
 | コンテンツビューア | MD/コード/プレーンテキストの表示 | [features/content-viewer.md](features/content-viewer.md) |
 | 統合ターミナル | PTYベースのターミナルエミュレータ | [features/terminal.md](features/terminal.md) |
 | パス入力支援 | ツリーからターミナルへのパス挿入 | [features/path-palette.md](features/path-palette.md) |
+| Claude Code 通知 | OSC 9・HTTP フックを検出して OS ネイティブ通知を発火 | [features/notification.md](features/notification.md) |
 
 ---
 
@@ -98,12 +99,28 @@
 | 機能 | 説明 | 対応コンポーネント |
 |------|------|------------------|
 | ターミナル表示 | xterm.jsベースのターミナルエミュレータ | `TerminalPanel` |
-| PTY管理 | portable-pyt によるプロセス管理 | Rust `commands/pty.rs` |
+| PTY管理 | portable-pty によるプロセス管理 | Rust `commands/pty.rs` |
+| ターミナル状態管理 | alacritty_terminal によるグリッド／OSC 解析 | Rust `terminal/` |
 | 複数タブ | 複数ターミナルを同時に開く | `TerminalPanel` |
 | 分割表示 | 水平/垂直分割 | `SplitPane` |
 | リサイズ対応 | ウィンドウリサイズ時にPTYサイズを更新 | `TerminalPanel` |
+| 動的タブタイトル | OSC 0/1/2 を検出しタブ名を自動更新 | `terminalStore.setOscTitle` |
+| タブ手動リネーム | ダブルクリックでピン留めリネーム・自動タイトル復帰 | `TerminalTabs` |
+| シェル終了自動クローズ | PTY exit 検知でタブを自動クローズ（最後の1枚は再作成） | `terminalStore.handlePtyExited` |
+| 未読通知マーク | 通知発火タブに琥珀ハイライト＋ドット表示 | `terminalStore.markUnread/clearUnread` |
+| Shift+Enter で LF | Claude Code 等の改行入力に LF を送信（通常 Enter は CR） | `useTerminalInput` |
 
-### 3.4 パス入力支援機能（FR-04）
+### 3.4 Claude Code 通知機能
+
+| 機能 | 説明 | 対応コンポーネント |
+|------|------|------------------|
+| OSC 9 検出 | PTY 出力から `ESC ] 9 ; <msg> BEL` を検知して通知 | Rust `terminal/event.rs`, `commands/pty.rs` |
+| HTTP フックサーバ | `127.0.0.1:19823` で Claude Code の hook を受信 | Rust `commands/notification.rs` |
+| 発火元タブ識別 | 通知タイトルに `Claude Code — {タブ名}` を差し込む | `DisplayTitleCache` + `set_pty_display_title` |
+| 通知種別分類 | Permission / Completed / Error / Waiting / Attention を自動判定 | `classify_notification()` |
+| 設定 ON/OFF | 設定画面で通知の有効/無効を切り替え | `Settings` + `appearance.notification_enabled` |
+
+### 3.5 パス入力支援機能（FR-04）
 
 | 機能 | 説明 | 対応コンポーネント |
 |------|------|------------------|
@@ -149,6 +166,7 @@
 | `Cmd+\` | コンテンツペインの分割/統合切り替え |
 | `Cmd+Shift+\` | ターミナルペインの分割/統合切り替え |
 | `Cmd+0` | ツリーパネルへフォーカス |
+| `Shift+Enter`（ターミナル） | LF を送信（Claude Code 等で改行を挿入、コマンド実行はしない） |
 | `?` | ショートカット一覧を開く/閉じる |
 
 ---
@@ -159,3 +177,4 @@
 |------|----------|---------|--------|
 | 2026-03-28 | 1.0 | 初版作成 | - |
 | 2026-04-05 | 1.1 | Phase 3-C キーボードショートカット追加 | - |
+| 2026-04-14 | 1.2 | Claude Code 通知機能・OSC 0/1/2 タイトル・手動リネーム・未読マーク・自動クローズ・Shift+Enter を反映 | - |

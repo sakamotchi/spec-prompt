@@ -1,8 +1,8 @@
 # リポジトリ構造定義書
 
-**バージョン**: 1.0
+**バージョン**: 1.1
 **作成日**: 2026年3月28日
-**最終更新**: 2026年3月28日
+**最終更新**: 2026年4月14日
 
 ---
 
@@ -40,32 +40,27 @@ src/
 ├── components/
 │   ├── TreePanel/            # プロジェクトツリー
 │   ├── MainArea/             # メインエリア（タブ切り替え）
-│   │   └── MainTabs.tsx
-│   ├── ContentView/          # コンテンツビューア
-│   │   ├── ContentTabs.tsx
-│   │   ├── MarkdownPreview.tsx
-│   │   ├── CodeViewer.tsx
-│   │   └── PlainTextViewer.tsx
-│   ├── TerminalPanel/        # 統合ターミナル
-│   │   └── TerminalTabs.tsx
-│   ├── SplitPane/            # 分割表示
-│   ├── PathPalette/          # パス検索パレット
-│   └── Layout/               # 全体レイアウト管理
+│   ├── ContentView/          # コンテンツビューア（MD/Code/Plain）
+│   ├── TerminalPanel/        # 統合ターミナル（xterm.js、複数タブ）
+│   ├── SplitPane/             # 分割表示
+│   ├── PathPalette/           # パス検索パレット
+│   ├── Settings/              # 設定画面（テーマ、フォント、通知 ON/OFF）
+│   ├── KeyboardShortcuts/     # ショートカット一覧オーバーレイ
+│   └── Layout/                # 全体レイアウト管理
 │
 ├── stores/
 │   ├── appStore.ts           # アプリ全体の状態
 │   ├── contentStore.ts       # コンテンツタブ・分割レイアウト
-│   └── terminalStore.ts      # ターミナルタブ・分割レイアウト・PTY ID
+│   ├── terminalStore.ts      # ターミナルタブ・PTY ID・OSC/手動タイトル・未読通知
+│   └── settingsStore.ts      # 外観設定（テーマ・フォント・通知 ON/OFF）
 │
 ├── hooks/
-│   ├── useFileTree.ts
-│   ├── useTerminal.ts
-│   └── usePathInsertion.ts
-│
 ├── lib/
 │   ├── markdown.ts           # MDレンダリング設定
 │   └── tauriApi.ts           # Tauriコマンド呼び出しラッパー
 │
+├── i18n/                     # 多言語化リソース
+├── test/                     # Vitest セットアップ
 ├── App.tsx
 ├── index.css                 # Tailwind CSS v4エントリー
 ├── main.tsx
@@ -87,12 +82,19 @@ src-tauri/
 ├── src/
 │   ├── commands/
 │   │   ├── mod.rs
-│   │   ├── filesystem.rs     # read_dir, read_file
-│   │   ├── pty.rs            # PTY管理（PtyManager + コマンド群）
-│   │   └── config.rs         # 設定管理
-│   ├── lib.rs                # ライブラリクレート（コマンド登録）
-│   ├── main.rs               # エントリーポイント
-│   └── watcher.rs            # ファイル監視
+│   │   ├── filesystem.rs     # read_dir, read_file, create/rename/delete, open_in_editor
+│   │   ├── pty.rs            # PTY管理（PtyManager + spawn/write/resize/close）
+│   │   ├── config.rs         # 外観設定（AppearanceSettings）、recent_projects
+│   │   ├── fonts.rs          # load_font_bytes（設定画面のフォント選択用）
+│   │   ├── git.rs            # git_status
+│   │   └── notification.rs   # HTTP フックサーバ、OSC 9 通知、DisplayTitleCache
+│   ├── terminal/
+│   │   ├── mod.rs
+│   │   ├── instance.rs       # TerminalManager / 個別ターミナル状態
+│   │   ├── grid.rs           # グリッド・スクロール制御
+│   │   └── event.rs          # alacritty_terminal イベント（OSC 0/1/2/9、ベル等）
+│   ├── lib.rs                # ライブラリクレート（コマンド登録・setup）
+│   └── main.rs               # エントリーポイント
 ├── build.rs
 ├── Cargo.lock
 ├── Cargo.toml
@@ -117,7 +119,8 @@ docs/
 │       ├── terminal.md
 │       ├── file-tree.md
 │       ├── content-viewer.md
-│       └── path-palette.md
+│       ├── path-palette.md
+│       └── notification.md         # Claude Code 通知（OSC 9 + HTTP hook）
 └── working/                  # 開発作業ドキュメント（一時的）
     └── {YYYYMMDD}_{要件名}/
         ├── requirements.md
@@ -265,3 +268,4 @@ Thumbs.db
 | 日付 | バージョン | 変更内容 | 作成者 |
 |------|----------|---------|--------|
 | 2026-03-28 | 1.0 | 初版作成（Phase 0実装内容を反映） | - |
+| 2026-04-14 | 1.1 | commands/notification.rs・terminal/ サブモジュール・Settings コンポーネント・settingsStore・features/notification.md を追加 | - |
