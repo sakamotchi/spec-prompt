@@ -22,6 +22,9 @@ fn read_dir_single(dir: &Path) -> Result<Vec<FileNode>, std::io::Error> {
     for entry in fs::read_dir(dir)? {
         let entry = entry?;
         let file_name = entry.file_name().to_string_lossy().to_string();
+        if file_name == ".DS_Store" {
+            continue;
+        }
         let path = entry.path().to_string_lossy().to_string();
         let is_dir = entry.file_type()?.is_dir();
         nodes.push(FileNode {
@@ -171,6 +174,16 @@ mod tests {
         fs::write(&path, "old content").unwrap();
         assert!(write_file(path.clone(), "new content".to_string()).is_ok());
         assert_eq!(fs::read_to_string(&path).unwrap(), "new content");
+    }
+
+    #[test]
+    fn test_read_dir_skips_ds_store() {
+        let dir = tempdir().unwrap();
+        fs::File::create(dir.path().join(".DS_Store")).unwrap();
+        fs::File::create(dir.path().join("keep.md")).unwrap();
+        let nodes = read_dir(dir.path().to_string_lossy().to_string()).unwrap();
+        assert_eq!(nodes.len(), 1);
+        assert_eq!(nodes[0].name, "keep.md");
     }
 
     #[test]
