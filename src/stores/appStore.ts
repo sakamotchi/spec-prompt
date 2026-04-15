@@ -71,6 +71,15 @@ interface AppState {
   // Git ステータス
   gitStatuses: Record<string, GitFileStatus>
   refreshGitStatus: () => void
+
+  // ファイル DnD（ドロップターゲットのハイライト用）
+  dragOverPath: string | null
+  setDragOverPath: (path: string | null) => void
+  // ファイル DnD（HTML5 dragstart で内部ドラッグ中の対象パスを保持。
+  // macOS では dragDropEnabled=true により内部 dragover/drop が JS に届かないため、
+  // 実際の移動判定は Tauri の onDragDropEvent 側で行い、ここで持つ paths を使う）
+  internalDragPaths: string[]
+  setInternalDragPaths: (paths: string[]) => void
 }
 
 export const useAppStore = create<AppState>()(
@@ -166,6 +175,11 @@ export const useAppStore = create<AppState>()(
           })
         )
       },
+
+      dragOverPath: null,
+      setDragOverPath: (path) => set({ dragOverPath: path }),
+      internalDragPaths: [],
+      setInternalDragPaths: (paths) => set({ internalDragPaths: paths }),
 
       // Git ステータス
       gitStatuses: {},

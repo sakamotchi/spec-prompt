@@ -135,5 +135,22 @@
     "draft": "草稿",
     "reviewing": "レビュー中",
     "approved": "承認済"
+  },
+  "dnd": {
+    "confirm": {
+      "moveTitle": "移動の確認",
+      "copyTitle": "コピーの確認",
+      "moveDesc": "{{count}} 件のアイテムを {{dest}} へ移動します。よろしいですか？",
+      "copyDesc": "{{count}} 件のアイテムを {{dest}} へコピーします。よろしいですか？",
+      "cancel": "キャンセル",
+      "execute": "実行"
+    },
+    "toast": {
+      "moveSuccess": "{{count}} 件を移動しました",
+      "copySuccess": "{{count}} 件をコピーしました",
+      "partialFailure": "{{ok}} 件成功 / {{fail}} 件失敗",
+      "skipped": "{{count}} 件をスキップしました（同名）",
+      "error": "操作に失敗しました: {{message}}"
+    }
   }
 }

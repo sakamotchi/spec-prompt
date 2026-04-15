@@ -135,5 +135,22 @@
     "draft": "Draft",
     "reviewing": "Reviewing",
     "approved": "Approved"
+  },
+  "dnd": {
+    "confirm": {
+      "moveTitle": "Confirm Move",
+      "copyTitle": "Confirm Copy",
+      "moveDesc": "Move {{count}} items to {{dest}}?",
+      "copyDesc": "Copy {{count}} items to {{dest}}?",
+      "cancel": "Cancel",
+      "execute": "Confirm"
+    },
+    "toast": {
+      "moveSuccess": "Moved {{count}} items",
+      "copySuccess": "Copied {{count}} items",
+      "partialFailure": "{{ok}} succeeded / {{fail}} failed",
+      "skipped": "Skipped {{count}} items (name conflict)",
+      "error": "Operation failed: {{message}}"
+    }
   }
 }

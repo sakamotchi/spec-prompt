@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { FolderOpen, Loader2, AlertCircle, Settings, SquareArrowOutUpRight } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { getCurrentWindow } from '@tauri-apps/api/window'
+import { getCurrentWebview } from '@tauri-apps/api/webview'
 import { saveMySession, consolidateAndSave, clearMySession } from '../../lib/windowSession'
 import { useAppStore } from '../../stores/appStore'
 import { useContentStore } from '../../stores/contentStore'
@@ -11,6 +12,8 @@ import { TreeNode } from './TreeNode'
 import { InlineInput } from './InlineInput'
 import { RecentProjectsMenu } from './RecentProjectsMenu'
 import { SettingsModal } from '../Settings/SettingsModal'
+import { ConfirmDropDialog } from './ConfirmDropDialog'
+import { TreeDndProvider, useTreeDnd } from '../../hooks/useTreeDnd'
 
 export function TreePanel() {
   const projectRoot = useAppStore((s) => s.projectRoot)
@@ -20,6 +23,8 @@ export function TreePanel() {
   const switchProject = useAppStore((s) => s.switchProject)
   const setProjectRoot = useAppStore((s) => s.setProjectRoot)
   const updateDirChildren = useAppStore((s) => s.updateDirChildren)
+  const dragOverPath = useAppStore((s) => s.dragOverPath)
+  const setDragOverPath = useAppStore((s) => s.setDragOverPath)
   const { loading, error } = useFileTree()
 
   const creatingState = useAppStore((s) => s.creatingState)
@@ -28,6 +33,9 @@ export function TreePanel() {
   const resetAllTabs = useContentStore((s) => s.resetAllTabs)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const { t } = useTranslation()
+
+  const dnd = useTreeDnd()
+  const treeAreaRef = useRef<HTMLDivElement>(null)
 
   const projectName = projectRoot
     ? projectRoot.split('/').pop() ?? projectRoot
@@ -112,7 +120,103 @@ export function TreePanel() {
       .catch(console.error)
   }
 
+  // ルート領域（ツリー余白）への内部 DnD
+  const handleRootDragOver = (e: React.DragEvent) => {
+    if (!projectRoot) return
+    const internalPaths = useAppStore.getState().internalDragPaths
+    if (internalPaths.length === 0) return
+    e.preventDefault()
+    e.dataTransfer.dropEffect = 'move'
+    if (dragOverPath !== projectRoot) setDragOverPath(projectRoot)
+  }
+
+  const handleRootDrop = (e: React.DragEvent) => {
+    if (!projectRoot) return
+    const internalPaths = useAppStore.getState().internalDragPaths
+    if (internalPaths.length === 0) return
+    e.preventDefault()
+    setDragOverPath(null)
+    useAppStore.getState().setInternalDragPaths([])
+    dnd.handleInternalDrop(internalPaths, projectRoot)
+  }
+
+  // DnD（内部ツリー移動・外部 Finder コピー）。
+  // macOS Tauri では dragDropEnabled=true によって dragover/drop が JS に届かないため、
+  // Tauri の onDragDropEvent 経由で target を検出する。
+  // 内部/外部の判別は appStore.internalDragPaths の有無で行う。
+  useEffect(() => {
+    let unlisten: (() => void) | null = null
+    let disposed = false
+
+    // onDragDropEvent の position は macOS では CSS ピクセル、他環境では physical のことがあるため
+    // 両方の解釈で elementFromPoint を試し、先にヒットしたほうを採用する
+    const findDestDir = (px: number, py: number): string | null => {
+      const root = useAppStore.getState().projectRoot
+      if (!root) return null
+      const dpr = window.devicePixelRatio || 1
+      const candidates = [
+        { x: px, y: py },
+        { x: px / dpr, y: py / dpr },
+      ]
+      for (const c of candidates) {
+        const el = document.elementFromPoint(c.x, c.y) as HTMLElement | null
+        if (!el) continue
+        const node = el.closest('[data-tree-node][data-is-dir="true"]') as HTMLElement | null
+        if (node) return node.getAttribute('data-path')
+        if (treeAreaRef.current?.contains(el)) return root
+      }
+      return null
+    }
+
+    getCurrentWebview()
+      .onDragDropEvent((event) => {
+        const root = useAppStore.getState().projectRoot
+        const payload = event.payload
+        if (payload.type === 'over') {
+          if (!root) return
+          const dest = findDestDir(payload.position.x, payload.position.y)
+          if (dest && useAppStore.getState().dragOverPath !== dest) {
+            useAppStore.getState().setDragOverPath(dest)
+          } else if (!dest && useAppStore.getState().dragOverPath !== null) {
+            useAppStore.getState().setDragOverPath(null)
+          }
+        } else if (payload.type === 'drop') {
+          const state = useAppStore.getState()
+          state.setDragOverPath(null)
+          if (!root) {
+            state.setInternalDragPaths([])
+            return
+          }
+          const internalPaths = state.internalDragPaths
+          const dest = findDestDir(payload.position.x, payload.position.y)
+          // 内部ドラッグ中なら内部移動として処理
+          if (internalPaths.length > 0) {
+            state.setInternalDragPaths([])
+            if (dest) dnd.handleInternalDrop(internalPaths, dest)
+            return
+          }
+          // 外部ドラッグ（Finder からのファイル）
+          if (!dest) return
+          if (!payload.paths || payload.paths.length === 0) return
+          dnd.handleExternalDrop(payload.paths, dest)
+        } else if (payload.type === 'leave') {
+          useAppStore.getState().setDragOverPath(null)
+        }
+      })
+      .then((fn) => {
+        if (disposed) fn()
+        else unlisten = fn
+      })
+      .catch(console.error)
+
+    return () => {
+      disposed = true
+      if (unlisten) unlisten()
+    }
+  }, [dnd])
+
   return (
+    <TreeDndProvider value={dnd}>
     <div
       data-panel="tree"
       tabIndex={-1}
@@ -153,7 +257,17 @@ export function TreePanel() {
       <SettingsModal open={settingsOpen} onOpenChange={setSettingsOpen} />
 
       {/* ツリーエリア */}
-      <div className="flex-1 overflow-y-auto min-h-0">
+      <div
+        ref={treeAreaRef}
+        className={[
+          'flex-1 overflow-y-auto min-h-0',
+          projectRoot && dragOverPath === projectRoot
+            ? 'bg-[color-mix(in_srgb,var(--color-accent)_10%,transparent)]'
+            : '',
+        ].join(' ')}
+        onDragOver={handleRootDragOver}
+        onDrop={handleRootDrop}
+      >
         {loading && (
           <div className="flex items-center justify-center h-16 gap-2 text-[var(--color-text-muted)] text-xs">
             <Loader2 size={14} className="animate-spin" />
@@ -189,6 +303,18 @@ export function TreePanel() {
           />
         )}
       </div>
+
+      <ConfirmDropDialog
+        open={dnd.pendingConfirm !== null}
+        operation={dnd.pendingConfirm?.operation ?? 'move'}
+        count={dnd.pendingConfirm?.count ?? 0}
+        destDir={dnd.pendingConfirm?.destDir ?? ''}
+        onConfirm={() => {
+          void dnd.confirmPending()
+        }}
+        onCancel={dnd.cancelPending}
+      />
     </div>
+    </TreeDndProvider>
   )
 }
