@@ -5,8 +5,8 @@ use commands::config::{add_recent_project, get_appearance, get_recent_projects, 
 use commands::fonts::load_font_bytes;
 use commands::git::git_status;
 use commands::filesystem::{
-    create_dir, create_file, delete_path, open_in_editor, read_dir, read_file, rename_path,
-    write_file,
+    copy_path, create_dir, create_file, delete_path, open_in_editor, read_dir, read_file,
+    rename_path, write_file,
 };
 use commands::notification::{
     send_notification, set_pty_display_title, start_hook_server, DisplayTitleCache,
@@ -40,6 +40,7 @@ pub fn run() {
             create_file,
             create_dir,
             rename_path,
+            copy_path,
             delete_path,
             open_in_editor,
             write_file,

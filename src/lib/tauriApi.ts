@@ -128,6 +128,9 @@ export const tauriApi = {
   renamePath: (oldPath: string, newPath: string): Promise<void> =>
     invoke("rename_path", { oldPath, newPath }),
 
+  copyPath: (src: string, destDir: string): Promise<string> =>
+    invoke("copy_path", { src, destDir }),
+
   deletePath: (path: string): Promise<void> => invoke("delete_path", { path }),
 
   openInEditor: (path: string): Promise<void> => invoke("open_in_editor", { path }),

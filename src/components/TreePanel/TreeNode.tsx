@@ -12,6 +12,7 @@ import { InlineInput } from './InlineInput'
 import { DeleteDialog } from './DeleteDialog'
 import { DOC_STATUS_COLOR } from '../../lib/frontmatter'
 import { getGitColor, getGitBadge, getDirGitColor } from '../../lib/gitStatus'
+import { TREE_DND_MIME, useTreeDndContext } from '../../hooks/useTreeDnd'
 
 const EXT_ICON_MAP: Record<string, string> = {
   md:   'vscode-icons:file-type-markdown',
@@ -76,10 +77,13 @@ export const TreeNode = memo(function TreeNode({ node, depth }: TreeNodeProps) {
   const setCreatingState = useAppStore((s) => s.setCreatingState)
   const setActiveMainTab = useAppStore((s) => s.setActiveMainTab)
   const loadDocStatuses = useAppStore((s) => s.loadDocStatuses)
+  const dragOverPath = useAppStore((s) => s.dragOverPath)
+  const setDragOverPath = useAppStore((s) => s.setDragOverPath)
   const openFile = useContentStore((s) => s.openFile)
   const closeTabByPath = useContentStore((s) => s.closeTabByPath)
   const renameTabPath = useContentStore((s) => s.renameTabPath)
   const { insertPath } = usePathInsertion()
+  const { handleInternalDrop } = useTreeDndContext()
 
   const [isLoadingChildren, setIsLoadingChildren] = useState(false)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
@@ -150,6 +154,60 @@ export const TreeNode = memo(function TreeNode({ node, depth }: TreeNodeProps) {
       setCreatingState(null)
       setEditingState({ type: 'rename', path: node.path })
     }
+  }
+
+  // ドラッグ開始: 選択中ファイルが当該ノードを含むなら全選択を、含まなければ単一を運ぶ。
+  // macOS の Tauri (dragDropEnabled=true) では内部 dragover/drop が JS に届かないため、
+  // ドロップ判定は Tauri の onDragDropEvent 側で行う。ここでは Zustand に対象パスを記録するだけ。
+  const handleDragStart = (e: React.DragEvent) => {
+    if (isEditing) {
+      e.preventDefault()
+      return
+    }
+    const { selectedFiles, setInternalDragPaths } = useAppStore.getState()
+    const paths = selectedFiles.includes(node.path) ? selectedFiles : [node.path]
+    setInternalDragPaths(paths)
+    // dataTransfer は Tauri 環境では受け取れないが、念のためセットしておく（ブラウザ環境互換）
+    e.dataTransfer.setData(TREE_DND_MIME, JSON.stringify(paths))
+    e.dataTransfer.effectAllowed = 'move'
+  }
+
+  const handleDragEnd = () => {
+    // Tauri の drop が後から届く可能性に備えて少し遅延してから状態をクリアする
+    setTimeout(() => {
+      useAppStore.getState().setInternalDragPaths([])
+      if (useAppStore.getState().dragOverPath !== null) {
+        useAppStore.getState().setDragOverPath(null)
+      }
+    }, 300)
+  }
+
+  // HTML5 dragover: Tauri が内部ドラッグを WebKit にパススルーするケースで必要
+  const handleDragOver = (e: React.DragEvent) => {
+    if (!node.is_dir) return
+    const internalPaths = useAppStore.getState().internalDragPaths
+    if (internalPaths.length === 0) return
+    e.preventDefault()
+    e.stopPropagation()
+    e.dataTransfer.dropEffect = 'move'
+    if (dragOverPath !== node.path) setDragOverPath(node.path)
+  }
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    if (!node.is_dir) return
+    e.stopPropagation()
+    if (dragOverPath === node.path) setDragOverPath(null)
+  }
+
+  const handleDrop = (e: React.DragEvent) => {
+    if (!node.is_dir) return
+    const internalPaths = useAppStore.getState().internalDragPaths
+    if (internalPaths.length === 0) return
+    e.preventDefault()
+    e.stopPropagation()
+    setDragOverPath(null)
+    useAppStore.getState().setInternalDragPaths([])
+    handleInternalDrop(internalPaths, node.path)
   }
 
   const ensureExpanded = useCallback(
@@ -274,14 +332,25 @@ export const TreeNode = memo(function TreeNode({ node, depth }: TreeNodeProps) {
         >
           <div
             onClick={handleClick}
+            draggable={!isEditing}
+            onDragStart={handleDragStart}
+            onDragEnd={handleDragEnd}
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onDrop={handleDrop}
+            data-tree-node="true"
+            data-is-dir={node.is_dir ? 'true' : 'false'}
+            data-path={node.path}
             className={[
               'flex items-center gap-1.5 h-7 pr-2 cursor-pointer select-none text-sm',
               'hover:bg-[var(--color-bg-elevated)]',
-              isMultiSelected
-                ? 'bg-[color-mix(in_srgb,var(--color-accent)_20%,transparent)] border-l-2 border-[var(--color-accent)] text-[var(--color-text-primary)]'
-                : isSelected
-                  ? 'bg-[var(--color-bg-elevated)] border-l-2 border-[var(--color-accent)] text-[var(--color-text-primary)]'
-                  : 'border-l-2 border-transparent text-[var(--color-text-primary)]',
+              dragOverPath === node.path
+                ? 'bg-[color-mix(in_srgb,var(--color-accent)_25%,transparent)] border-l-2 border-[var(--color-accent)] text-[var(--color-text-primary)]'
+                : isMultiSelected
+                  ? 'bg-[color-mix(in_srgb,var(--color-accent)_20%,transparent)] border-l-2 border-[var(--color-accent)] text-[var(--color-text-primary)]'
+                  : isSelected
+                    ? 'bg-[var(--color-bg-elevated)] border-l-2 border-[var(--color-accent)] text-[var(--color-text-primary)]'
+                    : 'border-l-2 border-transparent text-[var(--color-text-primary)]',
             ].join(' ')}
             style={{ paddingLeft: `${indent + 8}px` }}
           >

@@ -85,6 +85,49 @@ pub fn write_file(path: String, content: String) -> Result<(), String> {
     fs::write(&path, content.as_bytes()).map_err(|e| e.to_string())
 }
 
+// `src` を `dest` 配下へ再帰コピー。dest 自身は新規作成する。
+fn copy_recursive(src: &Path, dest: &Path) -> std::io::Result<()> {
+    if src.is_dir() {
+        fs::create_dir(dest)?;
+        for entry in fs::read_dir(src)? {
+            let entry = entry?;
+            copy_recursive(&entry.path(), &dest.join(entry.file_name()))?;
+        }
+        Ok(())
+    } else {
+        fs::copy(src, dest).map(|_| ())
+    }
+}
+
+#[tauri::command]
+pub async fn copy_path(src: String, dest_dir: String) -> Result<String, String> {
+    tokio::task::spawn_blocking(move || -> Result<String, String> {
+        let src_path = Path::new(&src);
+        let dest_dir_path = Path::new(&dest_dir);
+
+        if !src_path.exists() {
+            return Err(format!("コピー元が存在しません: {}", src));
+        }
+        if !dest_dir_path.exists() {
+            return Err(format!("コピー先フォルダが存在しません: {}", dest_dir));
+        }
+
+        let name = src_path
+            .file_name()
+            .ok_or_else(|| format!("コピー元のファイル名を取得できません: {}", src))?;
+        let final_path = dest_dir_path.join(name);
+
+        if final_path.exists() {
+            return Err(format!("既に存在します: {}", final_path.display()));
+        }
+
+        copy_recursive(src_path, &final_path).map_err(|e| e.to_string())?;
+        Ok(final_path.to_string_lossy().into_owned())
+    })
+    .await
+    .map_err(|e| format!("コピー処理に失敗しました: {}", e))?
+}
+
 #[tauri::command]
 pub fn open_in_editor(app: tauri::AppHandle, path: String) -> Result<(), String> {
     app.opener()
@@ -184,6 +227,78 @@ mod tests {
         let nodes = read_dir(dir.path().to_string_lossy().to_string()).unwrap();
         assert_eq!(nodes.len(), 1);
         assert_eq!(nodes[0].name, "keep.md");
+    }
+
+    #[tokio::test]
+    async fn test_copy_path_file() {
+        let dir = tempdir().unwrap();
+        let src = dir.path().join("a.md");
+        let dest_dir = dir.path().join("dest");
+        fs::create_dir(&dest_dir).unwrap();
+        fs::write(&src, "hello").unwrap();
+
+        let result = copy_path(
+            src.to_string_lossy().into_owned(),
+            dest_dir.to_string_lossy().into_owned(),
+        )
+        .await;
+        assert!(result.is_ok());
+        let final_path = dest_dir.join("a.md");
+        assert_eq!(fs::read_to_string(&final_path).unwrap(), "hello");
+        assert!(src.exists()); // コピーなので元は残る
+        assert_eq!(result.unwrap(), final_path.to_string_lossy());
+    }
+
+    #[tokio::test]
+    async fn test_copy_path_directory_recursive() {
+        let dir = tempdir().unwrap();
+        let src = dir.path().join("src");
+        let dest_dir = dir.path().join("dest");
+        fs::create_dir(&src).unwrap();
+        fs::create_dir(src.join("sub")).unwrap();
+        fs::create_dir(&dest_dir).unwrap();
+        fs::write(src.join("a.txt"), "x").unwrap();
+        fs::write(src.join("sub/b.txt"), "y").unwrap();
+
+        let result = copy_path(
+            src.to_string_lossy().into_owned(),
+            dest_dir.to_string_lossy().into_owned(),
+        )
+        .await;
+        assert!(result.is_ok());
+        assert!(dest_dir.join("src/a.txt").exists());
+        assert_eq!(fs::read_to_string(dest_dir.join("src/sub/b.txt")).unwrap(), "y");
+    }
+
+    #[tokio::test]
+    async fn test_copy_path_conflict_errors() {
+        let dir = tempdir().unwrap();
+        let src = dir.path().join("a.md");
+        let dest_dir = dir.path().join("dest");
+        fs::create_dir(&dest_dir).unwrap();
+        fs::write(&src, "x").unwrap();
+        fs::write(dest_dir.join("a.md"), "old").unwrap();
+
+        let result = copy_path(
+            src.to_string_lossy().into_owned(),
+            dest_dir.to_string_lossy().into_owned(),
+        )
+        .await;
+        assert!(result.is_err());
+        assert_eq!(fs::read_to_string(dest_dir.join("a.md")).unwrap(), "old");
+    }
+
+    #[tokio::test]
+    async fn test_copy_path_missing_source() {
+        let dir = tempdir().unwrap();
+        let dest_dir = dir.path().join("dest");
+        fs::create_dir(&dest_dir).unwrap();
+        let result = copy_path(
+            dir.path().join("missing.md").to_string_lossy().into_owned(),
+            dest_dir.to_string_lossy().into_owned(),
+        )
+        .await;
+        assert!(result.is_err());
     }
 
     #[test]

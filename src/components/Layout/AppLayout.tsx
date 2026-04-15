@@ -4,6 +4,7 @@ import { MainArea } from '../MainArea'
 import { TreePanel } from '../TreePanel'
 import { PathPalette } from '../PathPalette'
 import { ShortcutsModal } from '../KeyboardShortcuts/ShortcutsModal'
+import { ToastHost } from '../Toast'
 import { useAppStore } from '../../stores/appStore'
 import { useContentStore } from '../../stores/contentStore'
 import {
@@ -236,6 +237,7 @@ export function AppLayout() {
 
       <PathPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} />
       <ShortcutsModal open={shortcutsOpen} onOpenChange={setShortcutsOpen} />
+      <ToastHost />
     </div>
   )
 }
