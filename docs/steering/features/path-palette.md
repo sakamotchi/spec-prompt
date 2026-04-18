@@ -1,8 +1,8 @@
 # パス入力支援機能仕様書
 
-**バージョン**: 1.0
+**バージョン**: 1.1
 **作成日**: 2026年3月28日
-**最終更新**: 2026年3月28日
+**最終更新**: 2026年4月18日
 
 ---
 
@@ -57,6 +57,15 @@
 | PP-15 | 相対パス | プロジェクトルートからの相対パスで挿入する（デフォルト） |
 | PP-16 | 絶対パス | 絶対パスで挿入する（設定ファイルで切り替え可能） |
 
+### 2.6 プロンプト編集パレットとの連携（FR-15 追加分）
+
+| 要件ID | 要件 | 詳細 |
+|--------|------|------|
+| PP-17 | ディスパッチ分岐 | プロンプト編集パレット表示中（`isOpen && targetPtyId`）は PTY への `writePty` ではなく `promptPaletteStore.insertAtCaret` を呼ぶ |
+| PP-18 | 呼び出し側は無改修 | `TreeNode` / `ContextMenu` / `PathPalette` の `insertPath` 呼び出しはそのまま。分岐は `usePathInsertion` の内部で行う |
+| PP-19 | 挿入後のフォーカス | パレット開時は `terminal:focus` を発火させず textarea にフォーカスを維持 |
+| PP-20 | Ctrl+P 確定後の戻し | パレット開時は `Ctrl+P` パレットを閉じて textarea にフォーカスを戻す（`Dialog.Content.onCloseAutoFocus`） |
+
 ---
 
 ## 3. 技術仕様
@@ -71,8 +80,11 @@
 function usePathInsertion() {
   // activePtyId: 現在アクティブなターミナルのPTY ID
   // pathFormat: 'relative' | 'absolute'
-  // insertPath(filePath: string): Promise<void>
-  //   → writePty(activePtyId, formatPath(filePath)) を呼び出す
+  // insertPath(filePath: string | string[]): void
+  //   1. paths を相対/絶対形式に整形
+  //   2. プロンプト編集パレット表示中（isOpen && targetPtyId）なら
+  //      promptPaletteStore.insertAtCaret(formatted) を呼ぶ（PTY へは書かない）
+  //   3. それ以外はアクティブ PTY へ writePty(ptyId, formatted) を呼び、terminal:focus を発火
 }
 ```
 
@@ -121,3 +133,4 @@ function formatPath(filePath: string, projectRoot: string, format: PathFormat): 
 | 日付 | バージョン | 変更内容 | 作成者 |
 |------|----------|---------|--------|
 | 2026-03-28 | 1.0 | 初版作成 | - |
+| 2026-04-18 | 1.1 | プロンプト編集パレット（FR-15）とのディスパッチ分岐（§2.6）を追加 | - |

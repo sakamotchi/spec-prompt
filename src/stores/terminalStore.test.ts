@@ -5,6 +5,7 @@ import {
   computeDisplayTitle,
   type TerminalTab,
 } from './terminalStore'
+import { usePromptPaletteStore } from './promptPaletteStore'
 
 function makeTab(fallbackTitle: string): TerminalTab {
   return {
@@ -419,5 +420,107 @@ describe('pinned と OSC 更新の共存', () => {
     useTerminalStore.getState().unpinTab(tabId)
     const tab = useTerminalStore.getState().primary.tabs[0]
     expect(computeDisplayTitle(tab)).toBe('vim foo.ts')
+  })
+})
+
+describe('プロンプト編集パレットとの連携（F3-1）', () => {
+  beforeEach(() => {
+    resetStore()
+    usePromptPaletteStore.setState({
+      isOpen: false,
+      targetPtyId: null,
+      targetTabName: null,
+      drafts: {},
+      textareaRef: null,
+    })
+  })
+
+  function seedTwoTabsWithPty(): { tabAId: string; tabBId: string } {
+    const tabA: TerminalTab = {
+      ...makeTab('Terminal 1'),
+      ptyId: 'pty-a',
+    }
+    const tabB: TerminalTab = {
+      ...makeTab('Terminal 2'),
+      ptyId: 'pty-b',
+    }
+    useTerminalStore.setState((s) => ({
+      primary: { tabs: [tabA, tabB], activeTabId: tabA.id },
+      secondary: s.secondary,
+    }))
+    return { tabAId: tabA.id, tabBId: tabB.id }
+  }
+
+  it('closeTab() で閉じたタブの下書きが破棄される（他タブの下書きは残る）', () => {
+    const { tabAId } = seedTwoTabsWithPty()
+    const palette = usePromptPaletteStore.getState()
+    palette.setDraft('pty-a', 'A draft')
+    palette.setDraft('pty-b', 'B draft')
+
+    useTerminalStore.getState().closeTab(tabAId, 'primary')
+
+    const drafts = usePromptPaletteStore.getState().drafts
+    expect(drafts['pty-a']).toBeUndefined()
+    expect(drafts['pty-b']).toBe('B draft')
+  })
+
+  it('closeTab() が targetPtyId のタブを閉じたらパレットが自動クローズされる', () => {
+    const { tabAId } = seedTwoTabsWithPty()
+    usePromptPaletteStore.getState().open('pty-a', 'Terminal 1')
+
+    useTerminalStore.getState().closeTab(tabAId, 'primary')
+
+    const s = usePromptPaletteStore.getState()
+    expect(s.isOpen).toBe(false)
+    expect(s.targetPtyId).toBeNull()
+  })
+
+  it('closeTab() が targetPtyId 以外を閉じたらパレットは閉じない', () => {
+    const { tabBId } = seedTwoTabsWithPty()
+    usePromptPaletteStore.getState().open('pty-a', 'Terminal 1')
+
+    useTerminalStore.getState().closeTab(tabBId, 'primary')
+
+    expect(usePromptPaletteStore.getState().isOpen).toBe(true)
+    expect(usePromptPaletteStore.getState().targetPtyId).toBe('pty-a')
+  })
+
+  it('handlePtyExited() で該当 ptyId の下書きが破棄される', () => {
+    seedTwoTabsWithPty()
+    const palette = usePromptPaletteStore.getState()
+    palette.setDraft('pty-a', 'A draft')
+    palette.setDraft('pty-b', 'B draft')
+
+    useTerminalStore.getState().handlePtyExited('pty-a')
+
+    const drafts = usePromptPaletteStore.getState().drafts
+    expect(drafts['pty-a']).toBeUndefined()
+    expect(drafts['pty-b']).toBe('B draft')
+  })
+
+  it('closeActiveTab() でアクティブタブの下書きが破棄される', () => {
+    seedTwoTabsWithPty()
+    const palette = usePromptPaletteStore.getState()
+    palette.setDraft('pty-a', 'A draft')
+    palette.setDraft('pty-b', 'B draft')
+
+    useTerminalStore.getState().closeActiveTab('primary')
+
+    const drafts = usePromptPaletteStore.getState().drafts
+    expect(drafts['pty-a']).toBeUndefined()
+    expect(drafts['pty-b']).toBe('B draft')
+  })
+
+  it('closeTab() で最後の 1 枚は閉じないため、下書き破棄も発生しない', () => {
+    const tabA: TerminalTab = { ...makeTab('Terminal 1'), ptyId: 'pty-a' }
+    useTerminalStore.setState((s) => ({
+      primary: { tabs: [tabA], activeTabId: tabA.id },
+      secondary: s.secondary,
+    }))
+    usePromptPaletteStore.getState().setDraft('pty-a', 'keep')
+
+    useTerminalStore.getState().closeTab(tabA.id, 'primary')
+
+    expect(usePromptPaletteStore.getState().drafts['pty-a']).toBe('keep')
   })
 })

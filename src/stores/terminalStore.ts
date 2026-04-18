@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { usePromptPaletteStore } from './promptPaletteStore'
 
 export interface TerminalTab {
   id: string
@@ -82,6 +83,20 @@ export function computeDisplayTitle(tab: TerminalTab): string {
   return tab.oscTitle ?? tab.fallbackTitle
 }
 
+/**
+ * タブが閉じられた／PTY が終了したタイミングで、プロンプト編集パレットの
+ * 下書きを破棄し、当該タブが送信先だった場合はパレットを閉じる。
+ * 依存方向は terminalStore → promptPaletteStore の一方向参照。
+ */
+function notifyPromptPaletteOfPtyClosed(ptyId: string | null | undefined) {
+  if (!ptyId) return
+  const palette = usePromptPaletteStore.getState()
+  palette.clearDraft(ptyId)
+  if (palette.targetPtyId === ptyId) {
+    palette.close()
+  }
+}
+
 export const useTerminalStore = create<TerminalState>((set) => ({
   primary: makeGroup(1),
   secondary: makeGroup(1),
@@ -101,8 +116,10 @@ export const useTerminalStore = create<TerminalState>((set) => ({
     set((state) => {
       const group = state[pane]
       if (group.tabs.length <= 1) return state
+      const closing = group.tabs.find((t) => t.id === id)
       const newTabs = group.tabs.filter((t) => t.id !== id)
       const fallback = newTabs[newTabs.length - 1].id
+      notifyPromptPaletteOfPtyClosed(closing?.ptyId)
       return {
         [pane]: {
           tabs: newTabs,
@@ -117,6 +134,8 @@ export const useTerminalStore = create<TerminalState>((set) => ({
         const group = state[pane]
         const idx = group.tabs.findIndex((t) => t.ptyId === ptyId)
         if (idx < 0) return null
+        // タブ削除 or シェル再起動のいずれでも、当該 ptyId は今後使われない
+        notifyPromptPaletteOfPtyClosed(ptyId)
         if (group.tabs.length <= 1) {
           // 最後の 1 枚は削除せず、新しい空タブに差し替えてシェルを再起動させる
           const fresh = makeTab(1)
@@ -280,8 +299,10 @@ export const useTerminalStore = create<TerminalState>((set) => ({
       if (group.tabs.length <= 1) return state
       const activeId = group.activeTabId
       const idx = group.tabs.findIndex((t) => t.id === activeId)
+      const closing = group.tabs[idx]
       const newTabs = group.tabs.filter((t) => t.id !== activeId)
       const fallback = newTabs[Math.max(0, idx - 1)].id
+      notifyPromptPaletteOfPtyClosed(closing?.ptyId)
       return { [pane]: { tabs: newTabs, activeTabId: fallback } }
     }),
 

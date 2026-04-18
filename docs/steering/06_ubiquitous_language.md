@@ -1,8 +1,8 @@
 # ユビキタス言語定義書
 
-**バージョン**: 1.1
+**バージョン**: 1.2
 **作成日**: 2026年3月28日
-**最終更新**: 2026年4月14日
+**最終更新**: 2026年4月18日
 
 ---
 
@@ -97,6 +97,21 @@
 | パス形式 | Path Format | 挿入するパスが相対パスか絶対パスかの設定 | `pathFormat: 'relative' \| 'absolute'` |
 | Ctrl+クリック | Ctrl+Click | ツリーからターミナルへのワンアクション挿入操作 | - |
 | インクリメンタルサーチ | Incremental Search | 入力と同時に検索結果を更新するリアルタイム検索 | - |
+| ディスパッチ分岐 | Insertion Dispatch | パレット開閉により `writePty` / `insertAtCaret` を切り替える `usePathInsertion` 内部処理 | `usePathInsertion` |
+
+### 2.8 プロンプト編集パレット（Prompt Palette）
+
+| 用語 | 英語表記 | 定義 | コード上の表現 |
+|------|---------|------|---------------|
+| プロンプト編集パレット | Prompt Palette | 対話 CLI 宛てのプロンプトを誤送信なく推敲する非モーダルなモーダル UI | `PromptPalette` |
+| プロンプトストア | Prompt Palette Store | 開閉状態・送信先・下書きを管理する Zustand ストア | `usePromptPaletteStore` |
+| 送信先タブ | Target Terminal Tab | パレット起動時に固定される送信先の `ptyId` と表示タイトル | `targetPtyId`, `targetTabName` |
+| 下書き | Draft | タブごとにメモリで保持するプロンプト本文 | `drafts: Record<string, string>` |
+| キャレット挿入 | Insert At Caret | 選択範囲置換 + drafts 同期 + キャレット復元を行うテキスト挿入 API | `insertAtCaret()` |
+| 挿入シグナル | Insertion Tick | UI フラッシュ購読用の単調増加カウンタ | `lastInsertAt: number` |
+| 送信 | Submit Prompt | `Cmd+Enter` / `Ctrl+Enter` / 送信ボタンで本文 + `\n` を `writePty` する操作 | `handleSubmit()` |
+| 非モーダル | Non-modal | Radix Dialog を `modal={false}` + overlay `pointer-events: none` で表示する仕様 | - |
+| allow list | Allow List | パレット表示中に唯一発火を許可するグローバルショートカットの一覧（`Ctrl+P` / `Cmd+Shift+P`） | `AppLayout` の早期 return |
 
 ---
 
@@ -121,7 +136,9 @@
 | アプリストア | App Store | アプリ全体の状態を管理するZustandストア | `useAppStore` |
 | コンテンツストア | Content Store | コンテンツタブ・分割レイアウトの状態を管理するZustandストア | `useContentStore` |
 | ターミナルストア | Terminal Store | ターミナルタブ・PTY IDの状態を管理するZustandストア | `useTerminalStore` |
+| プロンプトパレットストア | Prompt Palette Store | プロンプト編集パレットの開閉・下書き・textarea ref を管理する Zustand ストア | `usePromptPaletteStore` |
 | Tauriラッパー | Tauri API Wrapper | Tauriコマンドを型付きでラップしたTypeScript関数群 | `tauriApi` |
+| トースト | Toast | 成功・エラー・情報を短時間表示する通知 UI | `toast.error()`, `ToastHost` |
 
 ---
 
@@ -215,3 +232,4 @@
 |------|----------|---------|--------|
 | 2026-03-28 | 1.0 | 初版作成 | - |
 | 2026-04-14 | 1.1 | Claude Code 通知・OSC タイトル・手動リネーム・未読通知・alacritty_terminal・外観設定の用語を追加 | - |
+| 2026-04-18 | 1.2 | プロンプト編集パレット（§2.8）・ディスパッチ分岐・プロンプトパレットストア・トーストの用語を追加 | - |

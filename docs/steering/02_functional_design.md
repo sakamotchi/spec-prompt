@@ -1,8 +1,8 @@
 # 機能設計書
 
-**バージョン**: 1.2
+**バージョン**: 1.3
 **作成日**: 2026年3月28日
-**最終更新**: 2026年4月14日
+**最終更新**: 2026年4月18日
 
 ---
 
@@ -16,6 +16,7 @@
 | コンテンツビューア | MD/コード/プレーンテキストの表示 | [features/content-viewer.md](features/content-viewer.md) |
 | 統合ターミナル | PTYベースのターミナルエミュレータ | [features/terminal.md](features/terminal.md) |
 | パス入力支援 | ツリーからターミナルへのパス挿入 | [features/path-palette.md](features/path-palette.md) |
+| プロンプト編集パレット | 対話 CLI 宛てのプロンプトを誤送信なく推敲する非モーダル UI | [features/prompt-palette.md](features/prompt-palette.md) |
 | Claude Code 通知 | OSC 9・HTTP フックを検出して OS ネイティブ通知を発火 | [features/notification.md](features/notification.md) |
 
 ---
@@ -129,6 +130,22 @@
 | パス検索パレット | Ctrl+P でインクリメンタルサーチ | `PathPalette` |
 | 複数ファイル一括挿入 | 複数選択して一括挿入 | `TreePanel` |
 | パス形式設定 | 相対/絶対パスを設定で切り替え | `Config` |
+| ディスパッチ分岐 | プロンプト編集パレット表示中は PTY ではなく textarea に挿入する | `usePathInsertion` |
+
+### 3.6 プロンプト編集パレット機能（FR-15）
+
+| 機能 | 説明 | 対応コンポーネント |
+|------|------|------------------|
+| パレット起動 | `Cmd+Shift+P` / タブ右クリック / ターミナル本体右クリックから非モーダルで起動 | `PromptPalette`, `TabContextMenu`, `TerminalBodyContextMenu` |
+| 複数行編集 | textarea で Enter は改行、Cmd+Enter で送信 | `PromptPalette` |
+| 送信 | `writePty(ptyId, body + "\n")` を 1 回で実行。空本文は no-op | `PromptPalette.handleSubmit` |
+| 下書き保持 | ターミナルタブごとにメモリで下書きを保持、再オープン時に復元 | `promptPaletteStore.drafts` |
+| タブ閉鎖で破棄 | タブを閉じる／PTY が終了すると該当下書きを破棄し、送信先だった場合はパレットも close | `terminalStore` → `promptPaletteStore` |
+| パス挿入連携 | `Cmd+Click` / 右クリック / `Ctrl+P` 確定時、パレット開なら textarea に挿入 | `usePathInsertion`, `PathPalette` |
+| IME 抑止 | `compositionstart/end` と `isComposing` の二重ガードで変換中の Enter を抑止 | `PromptPalette` |
+| ショートカット抑止 | 表示中は allow list（`Ctrl+P` / `Cmd+Shift+P`）以外のグローバルショートカットを `AppLayout` で早期 return | `AppLayout` |
+| 送信失敗トースト | `writePty` 失敗時に `toast.error` を出しパレットと本文を維持 | `PromptPalette`, `Toast` |
+| 挿入フラッシュ | パス挿入直後に textarea 枠を 300ms フラッシュ（`prefers-reduced-motion` スキップ） | `PromptPalette`, `promptPaletteStore.lastInsertAt` |
 
 ---
 
@@ -167,6 +184,8 @@
 | `Cmd+Shift+\` | ターミナルペインの分割/統合切り替え |
 | `Cmd+0` | ツリーパネルへフォーカス |
 | `Shift+Enter`（ターミナル） | LF を送信（Claude Code 等で改行を挿入、コマンド実行はしない） |
+| `Cmd+Shift+P` / `Ctrl+Shift+P` | プロンプト編集パレットを開く |
+| `Cmd+Enter` / `Ctrl+Enter`（パレット内） | パレットの本文 + `\n` をアクティブ PTY へ送信 |
 | `?` | ショートカット一覧を開く/閉じる |
 
 ---
@@ -178,3 +197,4 @@
 | 2026-03-28 | 1.0 | 初版作成 | - |
 | 2026-04-05 | 1.1 | Phase 3-C キーボードショートカット追加 | - |
 | 2026-04-14 | 1.2 | Claude Code 通知機能・OSC 0/1/2 タイトル・手動リネーム・未読マーク・自動クローズ・Shift+Enter を反映 | - |
+| 2026-04-18 | 1.3 | プロンプト編集パレット（FR-15）を機能カテゴリ §3.6・ショートカット・パス挿入ディスパッチ分岐に反映 | - |
