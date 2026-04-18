@@ -3855,7 +3855,7 @@ dependencies = [
 
 [[package]]
 name = "spec-prompt"
-version = "0.2.3"
+version = "0.2.4"
 dependencies = [
  "alacritty_terminal",
  "log",
