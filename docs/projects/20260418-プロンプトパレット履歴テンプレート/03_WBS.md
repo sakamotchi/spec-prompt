@@ -49,32 +49,32 @@
 
 ### Phase 2: 履歴機能
 
-- [ ] **T2-1**: 送信成功時の履歴 push
+- [x] **T2-1**: 送信成功時の履歴 push
   - 内容: `handleSubmit` の成功ブロックで `pushHistory(body)` を呼ぶ。失敗時は push しない
   - 成果物: `src/components/PromptPalette/PromptPalette.tsx`
   - 依存: T1-2
   - 規模: S
 
-- [ ] **T2-2**: `↑`/`↓` 直近巡回フック
+- [x] **T2-2**: `↑`/`↓` 直近巡回フック
   - 内容: `usePromptHistoryCursor` 実装（空判定・IME 判定・カーソル末尾固定）
   - 成果物: `src/hooks/usePromptHistoryCursor.ts` + `.test.ts`
   - 依存: T1-1
   - 規模: M
 
-- [ ] **T2-3**: `PromptPalette.tsx` への巡回ハンドラ統合
+- [x] **T2-3**: `PromptPalette.tsx` への巡回ハンドラ統合
   - 内容: `handleKeyDown` に `↑`/`↓` を追加、`handleChange` で `historyCursor` リセット
   - 成果物: `src/components/PromptPalette/PromptPalette.tsx`
   - 依存: T2-2
   - 規模: S
 
-- [ ] **T2-4**: 履歴ドロップダウン実装
+- [x] **T2-4**: 履歴ドロップダウン実装
   - 内容: `PromptHistoryDropdown` コンポーネント（検索・fuzzy・一覧・選択・流し込み）。`PathPalette.tsx` のフィルタ/ナビゲーションを参考
   - 成果物: `src/components/PromptPalette/PromptHistoryDropdown.tsx` + `.test.tsx`
   - 依存: T1-1, T1-5
   - 規模: L
 
-- [ ] **T2-5**: ヘッダアイコン＋`Cmd+H` 導線
-  - 内容: `PromptPalette.tsx` のヘッダ右端にアイコン、`shortcuts.ts` にパレット内スコープのショートカット定義
+- [x] **T2-5**: ヘッダアイコン＋`Cmd+H` 導線
+  - 内容: `PromptPalette.tsx` のヘッダ右端にアイコン、`shortcuts.ts` にパレット内スコープのショートカット定義。Esc 段階剥離（`Dialog.Content` の `onEscapeKeyDown` でドロップダウン表示中はパレットを閉じない）を含む
   - 成果物: `src/components/PromptPalette/PromptPalette.tsx`, `src/lib/shortcuts.ts`
   - 依存: T2-4
   - 規模: S
@@ -224,6 +224,6 @@ flowchart TB
 ## 6. マイルストーン
 
 - [x] **M1**: Phase 1 完了 — ストア・永続化・ユーティリティが単体でグリーン。既存パレット挙動に変化なし
-- [ ] **M2**: Phase 2 完了 — 「F4 → `↑` → `Cmd+Enter`」で直近プロンプト再送できる。履歴ドロップダウンから流し込みできる
+- [x] **M2**: Phase 2 完了 — 「F4 → `↑` → `Cmd+Enter`」で直近プロンプト再送できる。履歴ドロップダウンから流し込みできる
 - [ ] **M3**: Phase 3 完了 — テンプレ新規作成・選択・プレースホルダ Tab 遷移まで動作。`/` サジェストが動作。履歴からテンプレートへの昇格が可能
 - [ ] **M4**: リリース可能 — 全テストグリーン、手動シナリオ完了、steering 更新済み、バージョンタグ付与準備

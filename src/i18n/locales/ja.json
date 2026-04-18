@@ -158,6 +158,7 @@
       "newWindow": "新規ウィンドウを開く",
       "pathPalette": "パス検索パレット",
       "promptPalette": "プロンプト編集パレット",
+      "promptHistory": "パレット内: プロンプト履歴を開く",
       "shortcutList": "ショートカット一覧"
     }
   },

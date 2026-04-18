@@ -26,5 +26,6 @@ export const SHORTCUT_DEFS: ShortcutDef[] = [
   { labelKey: 'shortcuts.label.newWindow',      keys: ['⌘', 'N'],        categoryKey: 'shortcuts.category.other' },
   { labelKey: 'shortcuts.label.pathPalette',    keys: ['Ctrl', 'P'],     categoryKey: 'shortcuts.category.other' },
   { labelKey: 'shortcuts.label.promptPalette',  keys: ['⌘', '⇧', 'P'],   categoryKey: 'shortcuts.category.other' },
+  { labelKey: 'shortcuts.label.promptHistory',  keys: ['⌘', 'H'],        categoryKey: 'shortcuts.category.other' },
   { labelKey: 'shortcuts.label.shortcutList',   keys: ['?'],             categoryKey: 'shortcuts.category.other' },
 ]

@@ -30,11 +30,19 @@ vi.mock('react-i18next', () => ({
 }))
 
 function resetStore() {
+  localStorage.removeItem('spec-prompt:prompt-palette')
   usePromptPaletteStore.setState({
     isOpen: false,
     targetPtyId: null,
     targetTabName: null,
     drafts: {},
+    textareaRef: null,
+    lastInsertAt: 0,
+    history: [],
+    templates: [],
+    historyCursor: null,
+    dropdown: 'none',
+    editorState: null,
   })
 }
 
@@ -253,5 +261,162 @@ describe('PromptPalette', () => {
     const state = usePromptPaletteStore.getState()
     expect(state.isOpen).toBe(true)
     expect(state.drafts['pty-1']).toBe('echo hi')
+  })
+
+  // ---- Phase 2 追加 ----
+
+  it('送信成功時に履歴へ追加される（末尾空白 trim 後の値）', async () => {
+    act(() => {
+      usePromptPaletteStore.setState({
+        isOpen: true,
+        targetPtyId: 'pty-1',
+        targetTabName: 'zsh',
+        drafts: { 'pty-1': 'echo persisted\n' },
+      })
+    })
+    render(<PromptPalette />)
+    const ta = (await screen.findByRole('textbox')) as HTMLTextAreaElement
+    await act(async () => {
+      fireEvent.keyDown(ta, { key: 'Enter', metaKey: true })
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+    const history = usePromptPaletteStore.getState().history
+    expect(history).toHaveLength(1)
+    expect(history[0].body).toBe('echo persisted')
+  })
+
+  it('送信失敗時は履歴に追加されない', async () => {
+    writePtyMock.mockRejectedValueOnce(new Error('boom'))
+    act(() => {
+      usePromptPaletteStore.setState({
+        isOpen: true,
+        targetPtyId: 'pty-1',
+        targetTabName: 'zsh',
+        drafts: { 'pty-1': 'should-not-record' },
+      })
+    })
+    render(<PromptPalette />)
+    const ta = (await screen.findByRole('textbox')) as HTMLTextAreaElement
+    await act(async () => {
+      fireEvent.keyDown(ta, { key: 'Enter', metaKey: true })
+      await Promise.resolve()
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+    expect(usePromptPaletteStore.getState().history).toHaveLength(0)
+  })
+
+  it('空 textarea での ↑ で直近履歴が流し込まれる', async () => {
+    act(() => {
+      usePromptPaletteStore.setState({
+        isOpen: true,
+        targetPtyId: 'pty-1',
+        targetTabName: 'zsh',
+        drafts: {},
+      })
+      usePromptPaletteStore.getState().pushHistory('last-prompt')
+    })
+    render(<PromptPalette />)
+    const ta = (await screen.findByRole('textbox')) as HTMLTextAreaElement
+    fireEvent.keyDown(ta, { key: 'ArrowUp' })
+    expect(usePromptPaletteStore.getState().drafts['pty-1']).toBe('last-prompt')
+  })
+
+  it('Cmd+H で履歴ドロップダウンが開閉する', async () => {
+    act(() => {
+      usePromptPaletteStore.setState({
+        isOpen: true,
+        targetPtyId: 'pty-1',
+        targetTabName: 'zsh',
+        drafts: {},
+      })
+    })
+    render(<PromptPalette />)
+    const ta = (await screen.findByRole('textbox')) as HTMLTextAreaElement
+    fireEvent.keyDown(ta, { key: 'h', metaKey: true })
+    expect(usePromptPaletteStore.getState().dropdown).toBe('history')
+    fireEvent.keyDown(ta, { key: 'h', metaKey: true })
+    expect(usePromptPaletteStore.getState().dropdown).toBe('none')
+  })
+
+  it('Ctrl+H でも履歴ドロップダウンが開閉する', async () => {
+    act(() => {
+      usePromptPaletteStore.setState({
+        isOpen: true,
+        targetPtyId: 'pty-1',
+        targetTabName: 'zsh',
+        drafts: {},
+      })
+    })
+    render(<PromptPalette />)
+    const ta = (await screen.findByRole('textbox')) as HTMLTextAreaElement
+    fireEvent.keyDown(ta, { key: 'h', ctrlKey: true })
+    expect(usePromptPaletteStore.getState().dropdown).toBe('history')
+  })
+
+  it('ヘッダ履歴アイコンのクリックでドロップダウンが開く', async () => {
+    act(() => {
+      usePromptPaletteStore.setState({
+        isOpen: true,
+        targetPtyId: 'pty-1',
+        targetTabName: 'zsh',
+        drafts: {},
+      })
+    })
+    render(<PromptPalette />)
+    const btn = screen.getByLabelText('promptPalette.history.openHint')
+    await userEvent.click(btn)
+    expect(usePromptPaletteStore.getState().dropdown).toBe('history')
+  })
+
+  it('ドロップダウン表示中の Esc はパレット本体を閉じない（段階剥離）', async () => {
+    act(() => {
+      usePromptPaletteStore.setState({
+        isOpen: true,
+        targetPtyId: 'pty-1',
+        targetTabName: 'zsh',
+        drafts: {},
+        dropdown: 'history',
+      })
+      usePromptPaletteStore.getState().pushHistory('a')
+    })
+    render(<PromptPalette />)
+    // Radix Dialog.Content の onEscapeKeyDown は document の keydown を起点に発火する
+    fireEvent.keyDown(document, { key: 'Escape' })
+    const state = usePromptPaletteStore.getState()
+    expect(state.isOpen).toBe(true)
+  })
+
+  it('ドロップダウンが閉じているときの Esc は従来どおりパレットを閉じる', async () => {
+    act(() => {
+      usePromptPaletteStore.setState({
+        isOpen: true,
+        targetPtyId: 'pty-1',
+        targetTabName: 'zsh',
+        drafts: {},
+        dropdown: 'none',
+      })
+    })
+    render(<PromptPalette />)
+    fireEvent.keyDown(document, { key: 'Escape' })
+    expect(usePromptPaletteStore.getState().isOpen).toBe(false)
+  })
+
+  it('handleChange で historyCursor がリセットされる（ユーザー編集で巡回解除）', async () => {
+    act(() => {
+      usePromptPaletteStore.setState({
+        isOpen: true,
+        targetPtyId: 'pty-1',
+        targetTabName: 'zsh',
+        drafts: { 'pty-1': 'navigated' },
+      })
+      usePromptPaletteStore.getState().pushHistory('navigated')
+      usePromptPaletteStore.getState().setHistoryCursor(0)
+    })
+    render(<PromptPalette />)
+    const ta = (await screen.findByRole('textbox')) as HTMLTextAreaElement
+    fireEvent.change(ta, { target: { value: 'navigated edited' } })
+    expect(usePromptPaletteStore.getState().historyCursor).toBeNull()
   })
 })

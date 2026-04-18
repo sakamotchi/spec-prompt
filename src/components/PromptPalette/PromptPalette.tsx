@@ -1,9 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import * as Dialog from '@radix-ui/react-dialog'
+import { History } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { usePromptPaletteStore } from '../../stores/promptPaletteStore'
 import { tauriApi } from '../../lib/tauriApi'
 import { toast } from '../Toast'
+import { usePromptHistoryCursor } from '../../hooks/usePromptHistoryCursor'
+import { PromptHistoryDropdown } from './PromptHistoryDropdown'
 
 const IS_MAC =
   typeof navigator !== 'undefined' && /Mac|iP(hone|od|ad)/.test(navigator.platform)
@@ -16,6 +19,7 @@ export function PromptPalette() {
   const draft = usePromptPaletteStore((s) =>
     s.targetPtyId ? s.drafts[s.targetPtyId] ?? '' : '',
   )
+  const dropdown = usePromptPaletteStore((s) => s.dropdown)
 
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
@@ -43,13 +47,20 @@ export function PromptPalette() {
     return () => register(null)
   }, [])
 
+  // 履歴巡回フック
+  const { handleArrowKey, resetCursor } = usePromptHistoryCursor({
+    textareaRef,
+    isComposing,
+  })
+
   const handleChange = useCallback(
     (e: React.ChangeEvent<HTMLTextAreaElement>) => {
       const ptyId = usePromptPaletteStore.getState().targetPtyId
       if (!ptyId) return
       usePromptPaletteStore.getState().setDraft(ptyId, e.target.value)
+      resetCursor()
     },
-    [],
+    [resetCursor],
   )
 
   const handleSubmit = useCallback(async () => {
@@ -60,6 +71,8 @@ export function PromptPalette() {
     if (body.length === 0) return
     try {
       await tauriApi.writePty(ptyId, body + '\n')
+      // 送信成功時のみ履歴へ追加（clearDraft より前）
+      state.pushHistory(body)
       state.clearDraft(ptyId)
       state.close()
       window.dispatchEvent(new CustomEvent('terminal:focus'))
@@ -74,8 +87,35 @@ export function PromptPalette() {
     usePromptPaletteStore.getState().close()
   }, [])
 
+  const toggleHistoryDropdown = useCallback(() => {
+    const state = usePromptPaletteStore.getState()
+    if (state.dropdown === 'history') {
+      state.closeDropdown()
+    } else {
+      state.openDropdown('history')
+    }
+  }, [])
+
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+      // ↑/↓ 履歴巡回（空 textarea または巡回中のみ）
+      if (handleArrowKey(e)) return
+
+      // Cmd+H (mac) / Ctrl+H (win/linux) で履歴ドロップダウン開閉
+      if (
+        (e.key === 'h' || e.key === 'H') &&
+        (e.metaKey || e.ctrlKey) &&
+        !e.shiftKey &&
+        !e.altKey &&
+        !isComposing &&
+        !e.nativeEvent.isComposing
+      ) {
+        e.preventDefault()
+        e.stopPropagation()
+        toggleHistoryDropdown()
+        return
+      }
+
       // Cmd+Enter (mac) / Ctrl+Enter (win/linux) で送信
       if (
         e.key === 'Enter' &&
@@ -90,12 +130,15 @@ export function PromptPalette() {
         void handleSubmit()
       }
     },
-    [handleSubmit, isComposing],
+    [handleArrowKey, handleSubmit, isComposing, toggleHistoryDropdown],
   )
 
   const canSubmit = draft.trim().length > 0
 
   const submitHint = IS_MAC ? t('promptPalette.hint.submit') : t('promptPalette.hint.submitCtrl')
+  const historyHint = IS_MAC
+    ? t('promptPalette.hint.historyOpen')
+    : t('promptPalette.hint.historyOpen').replace('⌘H', 'Ctrl+H')
   const ariaLabel = targetTabName
     ? `${t('promptPalette.ariaLabel')}: ${targetTabName}`
     : t('promptPalette.ariaLabel')
@@ -132,7 +175,8 @@ export function PromptPalette() {
               originalTarget.closest('[role="menu"]') ||
               originalTarget.closest('[data-radix-menu-content]') ||
               originalTarget.closest('[data-radix-context-menu-content]') ||
-              originalTarget.closest('[data-radix-popper-content-wrapper]')
+              originalTarget.closest('[data-radix-popper-content-wrapper]') ||
+              originalTarget.closest('[data-palette-dropdown]')
             ) {
               e.preventDefault()
             }
@@ -140,6 +184,14 @@ export function PromptPalette() {
           onFocusOutside={(e) => {
             // フォーカスが外側に移動してもパレットは閉じない（textarea にフォーカスを返すため）。
             e.preventDefault()
+          }}
+          onEscapeKeyDown={(e) => {
+            // ドロップダウン表示中の Esc はドロップダウン側で処理し、パレット本体は閉じない。
+            // Radix Dialog の Esc は document レベルで処理されるため React の stopPropagation
+            // では止まらず、子コンポーネント側の preventDefault だけではパレットも閉じてしまう。
+            if (usePromptPaletteStore.getState().dropdown !== 'none') {
+              e.preventDefault()
+            }
           }}
           onOpenAutoFocus={(e) => {
             e.preventDefault()
@@ -182,10 +234,32 @@ export function PromptPalette() {
                 </span>
               </>
             )}
+            <div className="ml-auto flex items-center gap-1">
+              <button
+                type="button"
+                onClick={toggleHistoryDropdown}
+                aria-label={t('promptPalette.history.openHint')}
+                title={historyHint}
+                className="flex items-center justify-center w-7 h-7 rounded transition-colors"
+                style={{
+                  color:
+                    dropdown === 'history'
+                      ? 'var(--color-accent)'
+                      : 'var(--color-text-muted)',
+                  background:
+                    dropdown === 'history'
+                      ? 'var(--color-bg-panel)'
+                      : 'transparent',
+                }}
+              >
+                <History size={14} />
+              </button>
+            </div>
           </div>
 
           {/* 本文 */}
           <div className="p-3">
+            {dropdown === 'history' && <PromptHistoryDropdown />}
             <textarea
               ref={textareaRef}
               value={draft}
@@ -225,6 +299,8 @@ export function PromptPalette() {
               <span>{submitHint}</span>
               <span>·</span>
               <span>{t('promptPalette.hint.cancel')}</span>
+              <span>·</span>
+              <span>{t('promptPalette.hint.historyUp')}</span>
             </div>
             <div className="flex items-center gap-2">
               <button

@@ -158,6 +158,7 @@
       "newWindow": "Open New Window",
       "pathPalette": "Path Search Palette",
       "promptPalette": "Prompt Edit Palette",
+      "promptHistory": "In palette: Open prompt history",
       "shortcutList": "Shortcut List"
     }
   },
