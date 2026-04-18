@@ -197,10 +197,11 @@ src/
 │   ├── TreePanel/          # プロジェクトツリー
 │   ├── MainArea/           # メインエリア（タブ切り替え）
 │   │   └── MainTabs.tsx
-│   ├── ContentView/        # コンテンツビューア（MD/コード切り替え）
+│   ├── ContentView/        # コンテンツビューア（MD/コード/画像切り替え）
 │   │   ├── ContentTabs.tsx
 │   │   ├── MarkdownPreview.tsx
 │   │   ├── CodeViewer.tsx
+│   │   ├── ImageViewer.tsx
 │   │   └── PlainTextViewer.tsx
 │   ├── TerminalPanel/      # 統合ターミナル（複数タブ対応）
 │   │   └── TerminalTabs.tsx

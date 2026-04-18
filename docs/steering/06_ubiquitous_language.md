@@ -39,9 +39,10 @@
 | 用語 | 英語表記 | 定義 | コード上の表現 |
 |------|---------|------|---------------|
 | コンテンツビューア | Content Viewer | ファイルの内容を表示する領域の総称 | `ContentView` |
-| ビューモード | View Mode | ファイルの表示形式（マークダウン/コード/プレーンテキスト） | `ViewMode` |
+| ビューモード | View Mode | ファイルの表示形式（マークダウン/コード/画像/プレーンテキスト） | `ViewMode` |
 | マークダウンプレビュー | Markdown Preview | MDファイルをHTMLにレンダリングして表示するコンポーネント | `MarkdownPreview` |
 | コードビューア | Code Viewer | シンタックスハイライト付きでソースコードを表示するコンポーネント | `CodeViewer` |
+| 画像ビューア | Image Viewer | 画像ファイル（PNG/JPEG等）をコンテナ内にフィット表示するコンポーネント | `ImageViewer` |
 | プレーンテキストビューア | Plain Text Viewer | テキストをそのまま表示するコンポーネント | `PlainTextViewer` |
 | コンテンツタブ | Content Tab | コンテンツビューアで開いているファイルを示すタブ | `ContentTab` |
 | アクティブコンテンツ | Active Content | 現在フォーカスされているコンテンツタブのファイル | `activeContentId: string` |

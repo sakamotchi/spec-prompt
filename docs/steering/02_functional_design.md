@@ -87,9 +87,10 @@
 
 | 機能 | 説明 | 対応コンポーネント |
 |------|------|------------------|
-| マークダウンプレビュー | unified でMD→HTMLレンダリング | `MarkdownPreview` |
+| マークダウンプレビュー | unified でMD→HTMLレンダリング（`<img>` は asset プロトコル経由で表示） | `MarkdownPreview` |
 | Mermaidダイアグラム | 図表記法のレンダリング | `MarkdownPreview` |
 | コードビューア | Shikiによるシンタックスハイライト（読み取り専用） | `CodeViewer` |
+| 画像ビューア | PNG/JPEG/GIF/WebP/BMP/ICO/AVIF/SVG をコンテナ内にフィット表示 | `ImageViewer` |
 | プレーンテキスト表示 | その他のテキストファイル | `PlainTextViewer` |
 | 自動更新 | ファイル変更検知で再読み込み | `ContentView` |
 | 複数タブ | 複数ファイルをタブで開く | `ContentView` |

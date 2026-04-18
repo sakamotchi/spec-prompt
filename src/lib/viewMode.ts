@@ -1,4 +1,4 @@
-export type ViewMode = 'markdown' | 'code' | 'plain'
+export type ViewMode = 'markdown' | 'code' | 'image' | 'plain'
 
 const MARKDOWN_EXTS = new Set(['md', 'mdx'])
 
@@ -9,9 +9,14 @@ const CODE_EXTS = new Set([
   'sh', 'bash', 'zsh', 'fish', 'ps1',
 ])
 
+const IMAGE_EXTS = new Set([
+  'png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'ico', 'avif', 'svg',
+])
+
 export function getViewMode(filePath: string): ViewMode {
   const ext = filePath.split('.').pop()?.toLowerCase() ?? ''
   if (MARKDOWN_EXTS.has(ext)) return 'markdown'
   if (CODE_EXTS.has(ext)) return 'code'
+  if (IMAGE_EXTS.has(ext)) return 'image'
   return 'plain'
 }
