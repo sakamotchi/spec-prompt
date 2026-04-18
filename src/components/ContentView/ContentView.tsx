@@ -5,6 +5,7 @@ import { useContentStore } from '../../stores/contentStore'
 import { getViewMode } from '../../lib/viewMode'
 import { MarkdownPreview } from './MarkdownPreview'
 import { CodeViewer } from './CodeViewer'
+import { ImageViewer } from './ImageViewer'
 import { PlainTextViewer } from './PlainTextViewer'
 
 interface ContentViewProps {
@@ -22,12 +23,16 @@ export function ContentView({ tabId }: ContentViewProps) {
   const setTabLoading = useContentStore((s) => s.setTabLoading)
 
   // ファイル読み込み（content が null のときだけ実行）
+  // 画像は asset プロトコル経由で <img> が直接読むため、テキスト読み込みはスキップする。
   useEffect(() => {
     if (!tab?.filePath || tab.content !== null) return
+    const mode = getViewMode(tab.filePath)
+    if (mode === 'image') {
+      setTabContent(tabId, tab.filePath, '', mode)
+      return
+    }
     invoke<string>('read_file', { path: tab.filePath })
-      .then((text) =>
-        setTabContent(tabId, tab.filePath!, text, getViewMode(tab.filePath!))
-      )
+      .then((text) => setTabContent(tabId, tab.filePath!, text, mode))
       .catch((err) => {
         console.error('read_file failed:', err)
         setTabLoading(tabId, false)
@@ -47,5 +52,6 @@ export function ContentView({ tabId }: ContentViewProps) {
 
   if (tab.viewMode === 'markdown') return <MarkdownPreview content={tab.content} filePath={tab.filePath ?? undefined} />
   if (tab.viewMode === 'code') return <CodeViewer content={tab.content} filePath={tab.filePath} />
+  if (tab.viewMode === 'image') return <ImageViewer filePath={tab.filePath} />
   return <PlainTextViewer content={tab.content} />
 }
