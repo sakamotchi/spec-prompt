@@ -9,6 +9,8 @@ export interface PromptPaletteState {
   targetTabName: string | null
   drafts: Record<string, string>
   textareaRef: PromptPaletteTextareaRef | null
+  /** 挿入シグナル: insertAtCaret が成功するたび単調増加。UI のフラッシュ購読用 */
+  lastInsertAt: number
 
   open: (ptyId: string, tabName: string) => void
   close: () => void
@@ -47,6 +49,7 @@ export const usePromptPaletteStore = create<PromptPaletteState>((set, get) => ({
   targetTabName: null,
   drafts: {},
   textareaRef: null,
+  lastInsertAt: 0,
 
   open: (ptyId, tabName) =>
     set({ isOpen: true, targetPtyId: ptyId, targetTabName: tabName }),
@@ -85,7 +88,10 @@ export const usePromptPaletteStore = create<PromptPaletteState>((set, get) => ({
     const nextValue = before + text + after
     const caret = before.length + text.length
 
-    set((s) => ({ drafts: { ...s.drafts, [ptyId]: nextValue } }))
+    set((s) => ({
+      drafts: { ...s.drafts, [ptyId]: nextValue },
+      lastInsertAt: s.lastInsertAt + 1,
+    }))
 
     scheduleCaretRestore(() => get().textareaRef, caret)
   },

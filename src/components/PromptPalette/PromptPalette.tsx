@@ -23,6 +23,19 @@ export function PromptPalette() {
   // e.nativeEvent.isComposing と state の OR で二重ガード（ブラウザ差異対策）。
   const [isComposing, setIsComposing] = useState(false)
 
+  // パス挿入直後の視覚フィードバック（F4-2）。
+  // prefers-reduced-motion 設定時はスキップする。
+  const lastInsertAt = usePromptPaletteStore((s) => s.lastInsertAt)
+  const [flashing, setFlashing] = useState(false)
+  useEffect(() => {
+    if (!lastInsertAt) return
+    if (typeof window === 'undefined') return
+    if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return
+    setFlashing(true)
+    const id = window.setTimeout(() => setFlashing(false), 300)
+    return () => window.clearTimeout(id)
+  }, [lastInsertAt])
+
   // textarea ref を store に登録（パス挿入ディスパッチのパレット分岐で使用）
   useEffect(() => {
     const register = usePromptPaletteStore.getState().registerTextarea
@@ -190,6 +203,8 @@ export function PromptPalette() {
                 border: '1px solid var(--color-border)',
                 resize: 'vertical',
                 minHeight: '10rem',
+                boxShadow: flashing ? '0 0 0 2px var(--color-accent)' : 'none',
+                transition: 'box-shadow 120ms ease-out',
               }}
               aria-label={t('promptPalette.ariaLabel')}
               data-testid={targetPtyId ? `prompt-palette-textarea-${targetPtyId}` : 'prompt-palette-textarea'}

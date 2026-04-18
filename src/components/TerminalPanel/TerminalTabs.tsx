@@ -7,6 +7,7 @@ import { usePromptPaletteStore } from '../../stores/promptPaletteStore'
 import { TerminalPanel } from './TerminalPanel'
 import { TabInlineRenameInput } from './TabInlineRenameInput'
 import { TabContextMenu } from './TabContextMenu'
+import { TerminalBodyContextMenu } from './TerminalBodyContextMenu'
 
 const DRAG_MIME = 'application/x-specprompt-tab'
 
@@ -231,13 +232,18 @@ function TerminalPane({ pane }: TerminalPaneProps) {
       >
         {group.tabs.map((tab) => {
           const isActive = tab.id === group.activeTabId
+          const display = computeDisplayTitle(tab)
           return (
             <div
               key={tab.id}
               className="absolute inset-0 p-1"
               style={{ display: isActive ? 'flex' : 'none' }}
             >
-              <TerminalPanel tabId={tab.id} cwd={projectRoot ?? "~"} isActive={isActive} />
+              <TerminalBodyContextMenu ptyId={tab.ptyId} tabTitle={display}>
+                <div className="w-full h-full">
+                  <TerminalPanel tabId={tab.id} cwd={projectRoot ?? "~"} isActive={isActive} />
+                </div>
+              </TerminalBodyContextMenu>
             </div>
           )
         })}

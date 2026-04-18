@@ -8,6 +8,7 @@ function resetStore() {
     targetTabName: null,
     drafts: {},
     textareaRef: null,
+    lastInsertAt: 0,
   })
 }
 
@@ -152,5 +153,34 @@ describe('promptPaletteStore', () => {
     usePromptPaletteStore.getState().registerTextarea(null)
     usePromptPaletteStore.getState().insertAtCaret('X')
     expect(usePromptPaletteStore.getState().drafts['pty-1']).toBe('keep')
+  })
+
+  it('insertAtCaret() 成功時に lastInsertAt がインクリメントされる（F4-2 挿入シグナル）', () => {
+    const { ref } = makeTextareaRef('abcd', [2, 2])
+    usePromptPaletteStore.setState({
+      isOpen: true,
+      targetPtyId: 'pty-1',
+      targetTabName: 'zsh',
+      drafts: { 'pty-1': 'abcd' },
+      lastInsertAt: 0,
+    })
+    usePromptPaletteStore.getState().registerTextarea(ref)
+
+    usePromptPaletteStore.getState().insertAtCaret('X')
+    expect(usePromptPaletteStore.getState().lastInsertAt).toBe(1)
+
+    usePromptPaletteStore.getState().insertAtCaret('Y')
+    expect(usePromptPaletteStore.getState().lastInsertAt).toBe(2)
+  })
+
+  it('insertAtCaret() が no-op のとき lastInsertAt は変わらない', () => {
+    usePromptPaletteStore.setState({
+      isOpen: false,
+      targetPtyId: null,
+      lastInsertAt: 5,
+    })
+    usePromptPaletteStore.getState().registerTextarea(null)
+    usePromptPaletteStore.getState().insertAtCaret('X')
+    expect(usePromptPaletteStore.getState().lastInsertAt).toBe(5)
   })
 })
