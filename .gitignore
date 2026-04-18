@@ -44,3 +44,4 @@ docs/local/*
 
 # claude local
 .claude/settings.local.json
+.claude/worktrees/
