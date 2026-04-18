@@ -3,6 +3,7 @@ import * as Dialog from '@radix-ui/react-dialog'
 import { Search } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { useAppStore } from '../../stores/appStore'
+import { usePromptPaletteStore } from '../../stores/promptPaletteStore'
 import { usePathInsertion } from '../../hooks/usePathInsertion'
 import type { FileNode } from '../../lib/tauriApi'
 
@@ -133,6 +134,12 @@ export function PathPalette({ open, onClose }: PathPaletteProps) {
           onKeyDown={handleKeyDown}
           onCloseAutoFocus={(e) => {
             e.preventDefault()
+            // プロンプト編集パレット表示中は textarea にフォーカスを戻す
+            const promptPalette = usePromptPaletteStore.getState()
+            if (promptPalette.isOpen && promptPalette.textareaRef?.current) {
+              promptPalette.textareaRef.current.focus()
+              return
+            }
             window.dispatchEvent(new CustomEvent('terminal:focus'))
           }}
           aria-label={t('pathPalette.ariaLabel')}

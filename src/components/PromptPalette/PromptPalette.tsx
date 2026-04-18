@@ -1,4 +1,4 @@
-import { useCallback, useRef } from 'react'
+import { useCallback, useEffect, useRef } from 'react'
 import * as Dialog from '@radix-ui/react-dialog'
 import { useTranslation } from 'react-i18next'
 import { usePromptPaletteStore } from '../../stores/promptPaletteStore'
@@ -17,6 +17,13 @@ export function PromptPalette() {
   )
 
   const textareaRef = useRef<HTMLTextAreaElement>(null)
+
+  // textarea ref を store に登録（パス挿入ディスパッチのパレット分岐で使用）
+  useEffect(() => {
+    const register = usePromptPaletteStore.getState().registerTextarea
+    register(textareaRef)
+    return () => register(null)
+  }, [])
 
   const handleChange = useCallback(
     (e: React.ChangeEvent<HTMLTextAreaElement>) => {
@@ -73,11 +80,16 @@ export function PromptPalette() {
     : t('promptPalette.ariaLabel')
 
   return (
-    <Dialog.Root open={isOpen} onOpenChange={(o) => !o && handleCancel()}>
+    <Dialog.Root
+      open={isOpen}
+      onOpenChange={(o) => !o && handleCancel()}
+      modal={false}
+    >
       <Dialog.Portal>
+        {/* non-modal: オーバーレイは視覚的な薄掛けのみで、ツリー等へのクリックを透過させる */}
         <Dialog.Overlay
           className="fixed inset-0 z-40"
-          style={{ background: 'rgba(0,0,0,0.5)' }}
+          style={{ background: 'rgba(0,0,0,0.35)', pointerEvents: 'none' }}
         />
         <Dialog.Content
           className="fixed left-1/2 top-1/3 z-50 w-[640px] max-w-[90vw] rounded-lg shadow-2xl overflow-hidden"
@@ -87,6 +99,27 @@ export function PromptPalette() {
             transform: 'translateX(-50%)',
           }}
           aria-label={ariaLabel}
+          onPointerDownOutside={(e) => {
+            // Radix の pointerDownOutside は CustomEvent。実 DOM ターゲットは
+            // e.detail.originalEvent.target に入る。
+            const originalTarget = e.detail.originalEvent.target as Element | null
+            if (!originalTarget) return
+            // ツリー / 右クリックメニュー / Ctrl+P パレットからの操作で
+            // パレットが閉じないようにする（usePathInsertion で textarea に差し込むため）。
+            if (
+              originalTarget.closest('[data-panel="tree"]') ||
+              originalTarget.closest('[role="menu"]') ||
+              originalTarget.closest('[data-radix-menu-content]') ||
+              originalTarget.closest('[data-radix-context-menu-content]') ||
+              originalTarget.closest('[data-radix-popper-content-wrapper]')
+            ) {
+              e.preventDefault()
+            }
+          }}
+          onFocusOutside={(e) => {
+            // フォーカスが外側に移動してもパレットは閉じない（textarea にフォーカスを返すため）。
+            e.preventDefault()
+          }}
           onOpenAutoFocus={(e) => {
             e.preventDefault()
             const ta = textareaRef.current
