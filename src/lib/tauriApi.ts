@@ -152,6 +152,7 @@ export const tauriApi = {
       width: 1200,
       height: 800,
       resizable: true,
+      tabbingIdentifier: 'SpecPrompt',
     })
     win.once('tauri://error', (e) => console.error('Failed to create window:', e))
   },

@@ -16,6 +16,7 @@ import {
 } from '../../stores/terminalStore'
 import { tauriApi } from '../../lib/tauriApi'
 import { getCurrentWindow } from '@tauri-apps/api/window'
+import { listen } from '@tauri-apps/api/event'
 
 export function AppLayout() {
   const [paletteOpen, setPaletteOpen] = useState(false)
@@ -78,6 +79,9 @@ export function AppLayout() {
         paletteState.open(fallback.ptyId, computeDisplayTitle(fallback))
         return
       }
+
+      // ⌘N / Ctrl+N はアプリメニュー (File > New Window) の accelerator で捕捉されるため
+      // ここでは処理しない。JS 側で処理すると menu_event とあわせて二重発火する。
 
       // Cmd+T → ターミナルタブを新規作成
       if (meta && !shift && !ctrl && key === 't') {
@@ -153,6 +157,33 @@ export function AppLayout() {
     // キャプチャフェーズで登録することで xterm.js の keydown ハンドラより先に実行する
     window.addEventListener('keydown', handler, true)
     return () => window.removeEventListener('keydown', handler, true)
+  }, [])
+
+  // File > New Window メニューから発火される menu-new-window イベントを購読。
+  // app.emit は全ウィンドウにブロードキャストされるため、複数ウィンドウが開いているときは
+  // 各ウィンドウのリスナが一斉に発火してウィンドウが多重生成される。
+  // フォーカスされているウィンドウのみが実際に新規ウィンドウを生成するようにガードする。
+  useEffect(() => {
+    let unlisten: (() => void) | null = null
+    let disposed = false
+    listen('menu-new-window', async () => {
+      try {
+        const focused = await getCurrentWindow().isFocused()
+        if (!focused) return
+      } catch {
+        return
+      }
+      tauriApi.openNewWindow()
+    })
+      .then((fn) => {
+        if (disposed) fn()
+        else unlisten = fn
+      })
+      .catch(console.error)
+    return () => {
+      disposed = true
+      if (unlisten) unlisten()
+    }
   }, [])
 
   // OSC 0/1/2 由来のタイトル変化を購読し、表示タイトルの変化を Rust 側キャッシュへ同期する

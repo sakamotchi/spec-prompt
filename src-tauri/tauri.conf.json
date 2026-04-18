@@ -12,13 +12,15 @@
   "app": {
     "windows": [
       {
+        "label": "main",
         "title": "SpecPrompt",
         "width": 1280,
         "height": 800,
         "minWidth": 800,
         "minHeight": 600,
         "devtools": true,
-        "dragDropEnabled": true
+        "dragDropEnabled": true,
+        "tabbingIdentifier": "SpecPrompt"
       }
     ],
     "security": {

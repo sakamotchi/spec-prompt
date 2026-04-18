@@ -125,6 +125,7 @@
       "splitTerminal": "ターミナル分割切り替え",
       "parallelView": "コンテンツ/ターミナル並列表示",
       "focusTree": "ツリーパネルへフォーカス",
+      "newWindow": "新規ウィンドウを開く",
       "pathPalette": "パス検索パレット",
       "promptPalette": "プロンプト編集パレット",
       "shortcutList": "ショートカット一覧"

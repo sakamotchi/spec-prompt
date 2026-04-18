@@ -78,8 +78,30 @@ npx tauri build
 | Shortcut | Action |
 |---|---|
 | `Ctrl+Tab` | Toggle between Content and Terminal mode |
+| `⌘N` / `Ctrl+N` | Open a new window |
 | `Ctrl+P` | Open path palette |
 | `Ctrl+Click` | Insert file path into active terminal |
+
+## Multiple Windows and Tab Merging (macOS)
+
+SpecPrompt supports macOS native window tabs, so you can group multiple projects into one tabbed window instead of scattering them across your desktop.
+
+### Open a new window
+
+- `⌘N` or File > New Window
+- "New Window" button at the top of the project tree
+- Right-click on a folder > "Open in New Window"
+
+### Merge windows manually into tabs
+
+- Activate any window and choose **View > Show Tab Bar**. Drag another window's title bar onto the tab bar to merge it.
+- Alternatively, **Window > Merge All Windows** merges every SpecPrompt window at once.
+
+### Enable automatic tabbing
+
+Set **System Settings > Desktop & Dock > Windows > Prefer tabs when opening documents** to **"Always"**. New windows will automatically open as tabs of the existing window.
+
+> **Note**: Because Tauri v2 does not yet expose `NSWindow.tabbingMode = .preferred`, SpecPrompt cannot force automatic tabbing like VS Code does. If your system setting is not "Always", use the manual merge steps above.
 
 ## License
 

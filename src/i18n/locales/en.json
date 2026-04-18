@@ -125,6 +125,7 @@
       "splitTerminal": "Toggle Terminal Split",
       "parallelView": "Toggle Parallel View",
       "focusTree": "Focus Tree Panel",
+      "newWindow": "Open New Window",
       "pathPalette": "Path Search Palette",
       "promptPalette": "Prompt Edit Palette",
       "shortcutList": "Shortcut List"

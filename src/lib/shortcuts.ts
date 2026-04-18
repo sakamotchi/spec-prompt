@@ -23,6 +23,7 @@ export const SHORTCUT_DEFS: ShortcutDef[] = [
   { labelKey: 'shortcuts.label.focusTree',      keys: ['⌘', '0'],        categoryKey: 'shortcuts.category.focus' },
 
   // その他
+  { labelKey: 'shortcuts.label.newWindow',      keys: ['⌘', 'N'],        categoryKey: 'shortcuts.category.other' },
   { labelKey: 'shortcuts.label.pathPalette',    keys: ['Ctrl', 'P'],     categoryKey: 'shortcuts.category.other' },
   { labelKey: 'shortcuts.label.promptPalette',  keys: ['⌘', '⇧', 'P'],   categoryKey: 'shortcuts.category.other' },
   { labelKey: 'shortcuts.label.shortcutList',   keys: ['?'],             categoryKey: 'shortcuts.category.other' },

@@ -1,8 +1,23 @@
 import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
+import { getCurrentWindow } from '@tauri-apps/api/window'
 import type { FileNode, GitFileStatus } from '../lib/tauriApi'
 import { tauriApi } from '../lib/tauriApi'
 import { parseStatus, type DocStatus } from '../lib/frontmatter'
+
+const WINDOW_LABEL = getCurrentWindow().label
+const PERSIST_KEY = `spec-prompt-app-store:${WINDOW_LABEL}`
+const LEGACY_PERSIST_KEY = 'spec-prompt-app-store'
+
+if (WINDOW_LABEL === 'main') {
+  const legacyValue = localStorage.getItem(LEGACY_PERSIST_KEY)
+  if (legacyValue !== null && localStorage.getItem(PERSIST_KEY) === null) {
+    localStorage.setItem(PERSIST_KEY, legacyValue)
+  }
+  if (legacyValue !== null) {
+    localStorage.removeItem(LEGACY_PERSIST_KEY)
+  }
+}
 
 function setNodeChildren(nodes: FileNode[], targetPath: string, children: FileNode[]): FileNode[] {
   return nodes.map((node) => {
@@ -202,7 +217,7 @@ export const useAppStore = create<AppState>()(
       })(),
     }),
     {
-      name: 'spec-prompt-app-store',
+      name: PERSIST_KEY,
       partialize: (state) => ({
         activeMainTab: state.activeMainTab,
         mainLayout: state.mainLayout,
