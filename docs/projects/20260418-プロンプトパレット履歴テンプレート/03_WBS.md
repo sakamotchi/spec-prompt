@@ -5,8 +5,8 @@
 | フェーズ | 期間目安 | 主な成果物 |
 |---|---|---|
 | Phase 1: 基盤整備 | 2日 | ストア拡張、永続化、i18n 雛形、プレースホルダユーティリティ |
-| Phase 2: 履歴機能 | 2日 | `↑`/`↓` 巡回、履歴ドロップダウン、送信時 push、履歴→テンプレ昇格 |
-| Phase 3: テンプレート機能 | 3日 | テンプレドロップダウン、エディタ、プレースホルダ展開、`/` サジェスト |
+| Phase 2: 履歴機能 | 2日 | `↑`/`↓` 巡回、履歴ドロップダウン、送信時 push |
+| Phase 3: テンプレート機能 | 3日 | テンプレドロップダウン、エディタ、プレースホルダ展開、`/` サジェスト、履歴→テンプレ昇格 |
 | Phase 4: 統合・仕上げ | 2日 | 既存テストのグリーン化、結合テスト、手動シナリオ、ドキュメント反映 |
 
 合計目安: **約 9 日**（1 人作業想定、バッファ含まず）
@@ -79,12 +79,6 @@
   - 依存: T2-4
   - 規模: S
 
-- [ ] **T2-6**: 履歴→テンプレ昇格
-  - 内容: 履歴行の「テンプレに保存」アクション。名前入力モーダルは T3-3 の `PromptTemplateEditor` を流用できるよう初期値を `body` に設定
-  - 成果物: `PromptHistoryDropdown.tsx` からエディタ呼び出し
-  - 依存: T3-3
-  - 規模: S
-
 ### Phase 3: テンプレート機能
 
 - [ ] **T3-1**: テンプレドロップダウン実装
@@ -116,6 +110,12 @@
   - 成果物: `src/components/PromptPalette/SlashSuggest.tsx` + `.test.tsx`, `PromptPalette.tsx`, `shortcuts.ts`
   - 依存: T3-1
   - 規模: M
+
+- [ ] **T3-6**: 履歴→テンプレ昇格
+  - 内容: 履歴行の「テンプレに保存」アクションで `PromptTemplateEditor` を起動する。エディタの初期値として履歴 body を流し込み、ユーザーが名前付けして保存
+  - 成果物: `PromptHistoryDropdown.tsx` からエディタ呼び出し、必要に応じて `PromptTemplateEditor.tsx` に初期 body プロパティ対応
+  - 依存: T2-4, T3-3
+  - 規模: S
 
 ### Phase 4: 統合・仕上げ
 
@@ -169,14 +169,15 @@ flowchart TB
     T1-4 --> T3-2[T3-2 選択状態化]
     T3-1 --> T3-2
     T1-1 --> T3-3[T3-3 エディタ]
-    T3-3 --> T2-6[T2-6 昇格]
+    T2-4 --> T3-6[T3-6 昇格]
+    T3-3 --> T3-6
     T1-4 --> T3-4[T3-4 Tab遷移]
     T3-1 --> T3-5[T3-5 Cmd+T / slash]
     T2-3 --> T4-1[T4-1 既存テスト]
     T3-5 --> T4-1
     T3-4 --> T4-1
     T3-2 --> T4-1
-    T2-6 --> T4-1
+    T3-6 --> T4-1
     T4-1 --> T4-2[T4-2 結合テスト]
     T4-1 --> T4-3[T4-3 手動確認]
     T4-3 --> T4-4[T4-4 steering更新]
@@ -197,7 +198,7 @@ flowchart TB
 | 改修 | `src/components/PromptPalette/PromptPalette.tsx` | T2-1, T2-3, T2-5, T3-4, T3-5 |
 | 改修 | `src/lib/shortcuts.ts` | T2-5, T3-5 |
 | 改修 | `src/i18n/locales/ja.json`, `en.json` | T1-5 |
-| 新規 | `src/components/PromptPalette/PromptHistoryDropdown.tsx` | T2-4 |
+| 新規 | `src/components/PromptPalette/PromptHistoryDropdown.tsx` | T2-4, T3-6 |
 | 新規 | `src/components/PromptPalette/PromptTemplateDropdown.tsx` | T3-1 |
 | 新規 | `src/components/PromptPalette/PromptTemplateEditor.tsx` | T3-3 |
 | 新規 | `src/components/PromptPalette/SlashSuggest.tsx` | T3-5 |
@@ -224,5 +225,5 @@ flowchart TB
 
 - [x] **M1**: Phase 1 完了 — ストア・永続化・ユーティリティが単体でグリーン。既存パレット挙動に変化なし
 - [ ] **M2**: Phase 2 完了 — 「F4 → `↑` → `Cmd+Enter`」で直近プロンプト再送できる。履歴ドロップダウンから流し込みできる
-- [ ] **M3**: Phase 3 完了 — テンプレ新規作成・選択・プレースホルダ Tab 遷移まで動作。`/` サジェストが動作
+- [ ] **M3**: Phase 3 完了 — テンプレ新規作成・選択・プレースホルダ Tab 遷移まで動作。`/` サジェストが動作。履歴からテンプレートへの昇格が可能
 - [ ] **M4**: リリース可能 — 全テストグリーン、手動シナリオ完了、steering 更新済み、バージョンタグ付与準備
