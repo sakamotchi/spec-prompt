@@ -3,10 +3,12 @@ import { SplitPane } from '../SplitPane'
 import { MainArea } from '../MainArea'
 import { TreePanel } from '../TreePanel'
 import { PathPalette } from '../PathPalette'
+import { PromptPalette } from '../PromptPalette/PromptPalette'
 import { ShortcutsModal } from '../KeyboardShortcuts/ShortcutsModal'
 import { ToastHost } from '../Toast'
 import { useAppStore } from '../../stores/appStore'
 import { useContentStore } from '../../stores/contentStore'
+import { usePromptPaletteStore } from '../../stores/promptPaletteStore'
 import {
   useTerminalStore,
   computeDisplayTitle,
@@ -42,9 +44,29 @@ export function AppLayout() {
       }
 
       // Ctrl+P → パス検索パレット（既存）
-      if (ctrl && !meta && key === 'p') {
+      if (ctrl && !meta && !shift && key === 'p') {
         e.preventDefault()
         setPaletteOpen((prev) => !prev)
+        return
+      }
+
+      // Cmd+Shift+P (mac) / Ctrl+Shift+P (win/linux) → プロンプト編集パレット
+      if ((meta || ctrl) && shift && (key === 'p' || key === 'P')) {
+        e.preventDefault()
+        const paletteState = usePromptPaletteStore.getState()
+        if (paletteState.isOpen) return
+        const termState = useTerminalStore.getState()
+        const { focusedPane } = termState
+        const primaryActive = termState.primary.tabs.find(
+          (t) => t.id === termState.primary.activeTabId,
+        )
+        const secondaryActive = termState.secondary.tabs.find(
+          (t) => t.id === termState.secondary.activeTabId,
+        )
+        const preferred = focusedPane === 'secondary' ? secondaryActive : primaryActive
+        const fallback = preferred ?? primaryActive ?? secondaryActive
+        if (!fallback?.ptyId) return
+        paletteState.open(fallback.ptyId, computeDisplayTitle(fallback))
         return
       }
 
@@ -236,6 +258,7 @@ export function AppLayout() {
       </SplitPane>
 
       <PathPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} />
+      <PromptPalette />
       <ShortcutsModal open={shortcutsOpen} onOpenChange={setShortcutsOpen} />
       <ToastHost />
     </div>

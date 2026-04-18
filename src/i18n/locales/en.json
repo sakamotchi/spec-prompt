@@ -83,6 +83,26 @@
     "count": "{{count}} results",
     "countLimit": "(top 100)"
   },
+  "promptPalette": {
+    "ariaLabel": "Prompt Edit Palette",
+    "title": "Edit Prompt",
+    "targetPrefix": " → send to ",
+    "targetSuffix": "",
+    "placeholder": "Type your prompt... (Cmd+Enter to send)",
+    "hint": {
+      "newline": "Enter: newline",
+      "submit": "⌘Enter: send",
+      "submitCtrl": "Ctrl+Enter: send",
+      "cancel": "Esc: close"
+    },
+    "button": {
+      "submit": "Send",
+      "cancel": "Cancel"
+    },
+    "menu": {
+      "openPalette": "Edit Prompt..."
+    }
+  },
   "shortcuts": {
     "title": "Keyboard Shortcuts",
     "category": {
@@ -103,6 +123,7 @@
       "parallelView": "Toggle Parallel View",
       "focusTree": "Focus Tree Panel",
       "pathPalette": "Path Search Palette",
+      "promptPalette": "Prompt Edit Palette",
       "shortcutList": "Shortcut List"
     }
   },

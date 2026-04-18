@@ -83,6 +83,26 @@
     "count": "{{count}} 件",
     "countLimit": "（上位100件）"
   },
+  "promptPalette": {
+    "ariaLabel": "プロンプト編集パレット",
+    "title": "プロンプトを編集",
+    "targetPrefix": " → ",
+    "targetSuffix": " に送信",
+    "placeholder": "プロンプトを入力... (Cmd+Enter で送信)",
+    "hint": {
+      "newline": "Enter: 改行",
+      "submit": "⌘Enter: 送信",
+      "submitCtrl": "Ctrl+Enter: 送信",
+      "cancel": "Esc: 閉じる"
+    },
+    "button": {
+      "submit": "送信",
+      "cancel": "キャンセル"
+    },
+    "menu": {
+      "openPalette": "プロンプトを編集..."
+    }
+  },
   "shortcuts": {
     "title": "キーボードショートカット",
     "category": {
@@ -103,6 +123,7 @@
       "parallelView": "コンテンツ/ターミナル並列表示",
       "focusTree": "ツリーパネルへフォーカス",
       "pathPalette": "パス検索パレット",
+      "promptPalette": "プロンプト編集パレット",
       "shortcutList": "ショートカット一覧"
     }
   },

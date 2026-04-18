@@ -3,6 +3,7 @@ import { Plus, X, Columns2 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { useTerminalStore, computeDisplayTitle } from '../../stores/terminalStore'
 import { useAppStore } from '../../stores/appStore'
+import { usePromptPaletteStore } from '../../stores/promptPaletteStore'
 import { TerminalPanel } from './TerminalPanel'
 import { TabInlineRenameInput } from './TabInlineRenameInput'
 import { TabContextMenu } from './TabContextMenu'
@@ -132,6 +133,10 @@ function TerminalPane({ pane }: TerminalPaneProps) {
                 onRename={() => setEditingTabId(tab.id)}
                 onUnpin={() => useTerminalStore.getState().unpinTab(tab.id)}
                 onClose={() => closeTab(tab.id, pane)}
+                onOpenPromptPalette={() => {
+                  if (!tab.ptyId) return
+                  usePromptPaletteStore.getState().open(tab.ptyId, display)
+                }}
               >
                 <button
                   draggable={!isEditing}

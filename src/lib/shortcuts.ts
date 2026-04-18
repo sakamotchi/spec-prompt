@@ -24,5 +24,6 @@ export const SHORTCUT_DEFS: ShortcutDef[] = [
 
   // その他
   { labelKey: 'shortcuts.label.pathPalette',    keys: ['Ctrl', 'P'],     categoryKey: 'shortcuts.category.other' },
+  { labelKey: 'shortcuts.label.promptPalette',  keys: ['⌘', '⇧', 'P'],   categoryKey: 'shortcuts.category.other' },
   { labelKey: 'shortcuts.label.shortcutList',   keys: ['?'],             categoryKey: 'shortcuts.category.other' },
 ]

@@ -1,5 +1,5 @@
 import * as RadixContextMenu from '@radix-ui/react-context-menu'
-import { Pencil, RotateCcw, X } from 'lucide-react'
+import { Pencil, RotateCcw, X, MessageSquarePlus } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
 interface Props {
@@ -9,7 +9,11 @@ interface Props {
   onRename: () => void
   onUnpin: () => void
   onClose: () => void
+  onOpenPromptPalette: () => void
 }
+
+const IS_MAC =
+  typeof navigator !== 'undefined' && /Mac|iP(hone|od|ad)/.test(navigator.platform)
 
 const menuItemClass =
   'flex items-center gap-2 px-3 h-7 cursor-pointer outline-none select-none text-xs'
@@ -18,12 +22,14 @@ function MenuItem({
   onSelect,
   icon,
   label,
+  shortcut,
   disabled,
   danger,
 }: {
   onSelect: () => void
   icon: React.ReactNode
   label: string
+  shortcut?: string
   disabled?: boolean
   danger?: boolean
 }) {
@@ -53,7 +59,15 @@ function MenuItem({
       }}
     >
       {icon}
-      {label}
+      <span className="flex-1">{label}</span>
+      {shortcut && (
+        <span
+          className="ml-4 font-mono"
+          style={{ color: 'var(--color-text-muted)', fontSize: '0.7rem' }}
+        >
+          {shortcut}
+        </span>
+      )}
     </RadixContextMenu.Item>
   )
 }
@@ -74,8 +88,10 @@ export function TabContextMenu({
   onRename,
   onUnpin,
   onClose,
+  onOpenPromptPalette,
 }: Props) {
   const { t } = useTranslation()
+  const promptShortcut = IS_MAC ? '⌘⇧P' : 'Ctrl+⇧+P'
 
   return (
     <RadixContextMenu.Root>
@@ -83,12 +99,21 @@ export function TabContextMenu({
 
       <RadixContextMenu.Portal>
         <RadixContextMenu.Content
-          className="min-w-[180px] rounded py-1 shadow-lg z-50"
+          className="min-w-[220px] rounded py-1 shadow-lg z-50"
           style={{
             background: 'var(--color-bg-elevated)',
             border: '1px solid var(--color-border)',
           }}
         >
+          <MenuItem
+            onSelect={onOpenPromptPalette}
+            icon={<MessageSquarePlus size={12} />}
+            label={t('promptPalette.menu.openPalette')}
+            shortcut={promptShortcut}
+          />
+
+          <Separator />
+
           <MenuItem
             onSelect={onRename}
             icon={<Pencil size={12} />}
