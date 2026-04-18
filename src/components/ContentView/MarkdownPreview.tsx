@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { renderMarkdown } from '../../lib/markdown'
 import { openUrl } from '@tauri-apps/plugin-opener'
+import { convertFileSrc } from '@tauri-apps/api/core'
 import { useSettingsStore } from '../../stores/settingsStore'
 import { useContentStore } from '../../stores/contentStore'
 import { toFontFamilyCSS } from '../../lib/fontFamily'
@@ -32,6 +33,27 @@ export function MarkdownPreview({ content, filePath }: { content: string; filePa
   useEffect(() => {
     renderMarkdown(content, shikiTheme).then(setHtml)
   }, [content, shikiTheme])
+
+  // <img> の src をローカルファイル参照から Tauri の asset プロトコル URL に書き換える。
+  // WebView は file://・相対パスを直接読めないため、convertFileSrc でカスタムスキームに変換する。
+  useEffect(() => {
+    if (!html || !containerRef.current) return
+    const imgs = containerRef.current.querySelectorAll<HTMLImageElement>('img')
+    imgs.forEach((img) => {
+      const raw = img.getAttribute('src')
+      if (!raw) return
+      if (/^(https?:|data:|asset:|tauri:|blob:)/i.test(raw)) return
+      let absolute: string
+      if (raw.startsWith('/')) {
+        absolute = raw
+      } else if (filePath) {
+        absolute = resolveRelativePath(filePath, raw)
+      } else {
+        return
+      }
+      img.setAttribute('src', convertFileSrc(absolute))
+    })
+  }, [html, filePath])
 
   // Mermaid レンダリング
   useEffect(() => {
