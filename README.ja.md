@@ -12,6 +12,12 @@
 
 SpecPrompt はマークダウンプレビューと統合ターミナルを一体化したデスクトップアプリです。仕様書を参照しながら Claude Code などのAI CLIツールを横並びで操作できます。メモリ使用量の目標は **200MB 以下**（VS Codeの約1/5）。
 
+## スクリーンショット
+
+| ライト | ダーク |
+|---|---|
+| ![ライトモード](docs/assets/screenshot-light-ja.png) | ![ダークモード](docs/assets/screenshot-dark-ja.png) |
+
 ## 機能
 
 | 機能 | 説明 |

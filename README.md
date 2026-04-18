@@ -12,6 +12,12 @@ View your specs, run AI CLI tools, and browse files — all in one window, witho
 
 SpecPrompt pairs a Markdown previewer with an integrated terminal so you can reference specs and issue AI CLI commands (e.g. Claude Code) side-by-side. It targets a memory footprint of **under 200 MB** — roughly one-fifth of VS Code.
 
+## Screenshots
+
+| Light | Dark |
+|---|---|
+| ![Light mode](docs/assets/screenshot-light.png) | ![Dark mode](docs/assets/screenshot-dark.png) |
+
 ## Features
 
 | Feature | Description |
