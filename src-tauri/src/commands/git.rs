@@ -60,6 +60,50 @@ pub fn git_status(cwd: String) -> Result<HashMap<String, GitFileStatus>, String>
     Ok(parse_porcelain(&stdout, &cwd))
 }
 
+/// 指定 cwd の現在ブランチ名を取得する。
+/// - 通常ブランチ: `Ok(Some("main"))` のように返す
+/// - detached HEAD: 短縮 SHA を `Ok(Some("1a2b3c4"))` のように返す
+/// - Git リポジトリでない / `git` 未インストール / 実行失敗: `Ok(None)`
+#[tauri::command]
+pub fn git_branch(cwd: String) -> Result<Option<String>, String> {
+    let output = match Command::new("git")
+        .args(["rev-parse", "--abbrev-ref", "HEAD"])
+        .current_dir(&cwd)
+        .output()
+    {
+        Ok(o) => o,
+        Err(_) => return Ok(None),
+    };
+
+    if !output.status.success() {
+        return Ok(None);
+    }
+
+    let name = String::from_utf8_lossy(&output.stdout).trim().to_string();
+    if name.is_empty() {
+        return Ok(None);
+    }
+
+    if name == "HEAD" {
+        // detached HEAD → 短縮 SHA を返す
+        let short = match Command::new("git")
+            .args(["rev-parse", "--short", "HEAD"])
+            .current_dir(&cwd)
+            .output()
+        {
+            Ok(o) => o,
+            Err(_) => return Ok(None),
+        };
+        if !short.status.success() {
+            return Ok(None);
+        }
+        let sha = String::from_utf8_lossy(&short.stdout).trim().to_string();
+        return Ok(if sha.is_empty() { None } else { Some(sha) });
+    }
+
+    Ok(Some(name))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -140,5 +184,77 @@ mod tests {
         let output = " M file.txt\n";
         let result = parse_porcelain(output, "/project/");
         assert!(result.contains_key("/project/file.txt"));
+    }
+
+    // ===== git_branch のテスト =====
+
+    fn init_repo(dir: &std::path::Path) {
+        let ok = |args: &[&str]| {
+            assert!(
+                Command::new("git")
+                    .args(args)
+                    .current_dir(dir)
+                    .status()
+                    .unwrap()
+                    .success()
+            );
+        };
+        ok(&["init", "-q", "-b", "main"]);
+        std::fs::write(dir.join("README.md"), "x").unwrap();
+        ok(&["add", "."]);
+        ok(&[
+            "-c",
+            "user.email=t@example.com",
+            "-c",
+            "user.name=t",
+            "commit",
+            "-qm",
+            "init",
+        ]);
+    }
+
+    #[test]
+    fn test_git_branch_returns_branch_name() {
+        let td = tempfile::TempDir::new().unwrap();
+        init_repo(td.path());
+        let result = git_branch(td.path().to_string_lossy().into_owned()).unwrap();
+        assert_eq!(result, Some("main".to_string()));
+    }
+
+    #[test]
+    fn test_git_branch_detached_returns_short_sha() {
+        let td = tempfile::TempDir::new().unwrap();
+        init_repo(td.path());
+        let sha_out = Command::new("git")
+            .args(["rev-parse", "HEAD"])
+            .current_dir(td.path())
+            .output()
+            .unwrap();
+        let sha_full = String::from_utf8_lossy(&sha_out.stdout).trim().to_string();
+        assert!(
+            Command::new("git")
+                .args(["checkout", "-q", &sha_full])
+                .current_dir(td.path())
+                .status()
+                .unwrap()
+                .success()
+        );
+        let result = git_branch(td.path().to_string_lossy().into_owned()).unwrap();
+        assert!(result.is_some(), "detached HEAD では短縮 SHA を返すはず");
+        let name = result.unwrap();
+        assert_ne!(name, "HEAD", "HEAD 文字列のままになってはいけない");
+        assert!(
+            sha_full.starts_with(&name),
+            "短縮 SHA は full SHA の接頭辞であるはず: name={}, full={}",
+            name,
+            sha_full
+        );
+    }
+
+    #[test]
+    fn test_git_branch_non_repo_returns_none() {
+        let td = tempfile::TempDir::new().unwrap();
+        let result = git_branch(td.path().to_string_lossy().into_owned()).unwrap();
+        assert_eq!(result, None);
     }
 }
