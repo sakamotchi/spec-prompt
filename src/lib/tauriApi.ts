@@ -189,4 +189,5 @@ export interface AppearanceSettings {
   content_font_size: number;
   terminal_font_family: string;
   terminal_font_size: number;
+  notification_enabled: boolean;
 }
