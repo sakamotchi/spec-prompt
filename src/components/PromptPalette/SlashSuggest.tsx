@@ -46,19 +46,31 @@ export const SlashSuggest = forwardRef<SlashSuggestHandle, SlashSuggestProps>(
   function SlashSuggest({ draft, onSelect }, ref) {
     const { t } = useTranslation()
     const templates = usePromptPaletteStore((s) => s.templates)
+    const skills = usePromptPaletteStore((s) => s.skills)
 
     const query = parseSlashQuery(draft)
     const isActive = query !== null
+
+    const userSkills = useMemo(
+      () => skills.filter((s) => s.kind === 'user'),
+      [skills],
+    )
+    const projectSkills = useMemo(
+      () => skills.filter((s) => s.kind === 'project'),
+      [skills],
+    )
 
     const sections: SlashSuggestSection[] = useMemo(() => {
       if (!isActive) return []
       return getSlashSuggestCandidates({
         templates,
         builtIns: BUILT_IN_COMMANDS,
+        userSkills,
+        projectSkills,
         query: query ?? '',
         maxPerSection: MAX_PER_SECTION,
       })
-    }, [isActive, query, templates])
+    }, [isActive, query, templates, userSkills, projectSkills])
 
     /** セクションをフラットにした候補列（↑↓/Enter/Tab はグローバル index で管理） */
     const flatItems: SlashSuggestItem[] = useMemo(

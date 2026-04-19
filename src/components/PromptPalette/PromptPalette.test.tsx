@@ -7,9 +7,12 @@ import { usePromptPaletteStore } from '../../stores/promptPaletteStore'
 const writePtyMock = vi.fn<(id: string, data: string) => Promise<void>>()
 const toastErrorMock = vi.fn<(message: string) => void>()
 
+const listSkillsMock = vi.fn<(projectRoot?: string) => Promise<unknown[]>>()
+
 vi.mock('../../lib/tauriApi', () => ({
   tauriApi: {
     writePty: (id: string, data: string) => writePtyMock(id, data),
+    listSkills: (projectRoot?: string) => listSkillsMock(projectRoot),
   },
 }))
 
@@ -43,6 +46,8 @@ function resetStore() {
     historyCursor: null,
     dropdown: 'none',
     editorState: null,
+    skills: [],
+    skillsLoadedAt: null,
   })
 }
 
@@ -53,6 +58,8 @@ describe('PromptPalette', () => {
     writePtyMock.mockReset()
     writePtyMock.mockResolvedValue(undefined)
     toastErrorMock.mockReset()
+    listSkillsMock.mockReset()
+    listSkillsMock.mockResolvedValue([])
   })
 
   it('閉じているときは textarea を描画しない', () => {
@@ -423,6 +430,30 @@ describe('PromptPalette', () => {
     expect(usePromptPaletteStore.getState().isOpen).toBe(true)
     // textarea にフォーカスが残っていること確認は jsdom で難しいため省略
     void ta
+  })
+
+  it('パレット初回オープン時に listSkills が 1 回呼ばれ、以後はキャッシュされる', async () => {
+    act(() => {
+      usePromptPaletteStore.setState({
+        isOpen: true,
+        targetPtyId: 'pty-1',
+        targetTabName: 'zsh',
+        drafts: {},
+      })
+    })
+    const { rerender } = render(<PromptPalette />)
+    // useEffect 経由で非同期呼び出し
+    await act(async () => {
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+    expect(listSkillsMock).toHaveBeenCalledTimes(1)
+    // 2 回目のレンダでも skillsLoadedAt が更新済みなので再呼び出しされない
+    rerender(<PromptPalette />)
+    await act(async () => {
+      await Promise.resolve()
+    })
+    expect(listSkillsMock).toHaveBeenCalledTimes(1)
   })
 
   it('textarea にフォーカスがある状態で Tab を押すと SlashSuggest の候補が確定される', async () => {

@@ -4,3 +4,4 @@ pub mod fonts;
 pub mod git;
 pub mod notification;
 pub mod pty;
+pub mod skills;

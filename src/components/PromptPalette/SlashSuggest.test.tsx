@@ -191,4 +191,59 @@ describe('SlashSuggest', () => {
     fireEvent.keyDown(root, { key: 'Enter', metaKey: true })
     expect(onSelect).not.toHaveBeenCalled()
   })
+
+  it('store の skills に user-skill があると User Skills セクションが表示される', () => {
+    usePromptPaletteStore.setState({
+      skills: [
+        {
+          kind: 'user',
+          name: 'zzmy-user-skill',
+          description: 'U',
+          path: '/u/zzmy-user-skill/SKILL.md',
+        },
+      ],
+    })
+    render(<SlashSuggest draft="/zzmy" onSelect={() => {}} />)
+    expect(
+      screen.getByLabelText('promptPalette.slashSuggest.section.userSkills'),
+    ).toBeTruthy()
+    expect(screen.getAllByText('promptPalette.slashSuggest.badge.userSkill')).toHaveLength(1)
+  })
+
+  it('store の skills に project-skill があると Project Skills セクションが表示される', () => {
+    usePromptPaletteStore.setState({
+      skills: [
+        {
+          kind: 'project',
+          name: 'zzmy-project-skill',
+          description: 'P',
+          path: '/p/zzmy-project-skill/SKILL.md',
+        },
+      ],
+    })
+    render(<SlashSuggest draft="/zzmy" onSelect={() => {}} />)
+    expect(
+      screen.getByLabelText('promptPalette.slashSuggest.section.projectSkills'),
+    ).toBeTruthy()
+    expect(screen.getAllByText('promptPalette.slashSuggest.badge.projectSkill')).toHaveLength(1)
+  })
+
+  it('Skill 選択時は onSelect の kind が user-skill / project-skill になる', () => {
+    usePromptPaletteStore.setState({
+      skills: [
+        {
+          kind: 'user',
+          name: 'zzpicked',
+          path: '/u/zzpicked/SKILL.md',
+        },
+      ],
+    })
+    const onSelect = vi.fn()
+    render(<SlashSuggest draft="/zzpicked" onSelect={onSelect} />)
+    const root = document.querySelector('[data-palette-dropdown="slash"]') as HTMLElement
+    fireEvent.keyDown(root, { key: 'Enter' })
+    expect(onSelect).toHaveBeenCalledTimes(1)
+    expect(onSelect.mock.calls[0][0].kind).toBe('user-skill')
+    expect(onSelect.mock.calls[0][0].name).toBe('zzpicked')
+  })
 })

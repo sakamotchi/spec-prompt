@@ -1,5 +1,14 @@
-import { describe, it, expect, beforeEach } from 'vitest'
+import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { usePromptPaletteStore, type PromptPaletteTextareaRef } from './promptPaletteStore'
+import type { SkillMetadata } from '../lib/slashSuggestItem'
+
+const listSkillsMock = vi.fn<(projectRoot?: string) => Promise<SkillMetadata[]>>()
+
+vi.mock('../lib/tauriApi', () => ({
+  tauriApi: {
+    listSkills: (projectRoot?: string) => listSkillsMock(projectRoot),
+  },
+}))
 
 function resetStore() {
   localStorage.removeItem('spec-prompt:prompt-palette')
@@ -15,6 +24,8 @@ function resetStore() {
     historyCursor: null,
     dropdown: 'none',
     editorState: null,
+    skills: [],
+    skillsLoadedAt: null,
   })
 }
 
@@ -387,5 +398,58 @@ describe('promptPaletteStore — Phase 1: 履歴・テンプレート基盤', ()
       expect(parsed.state).not.toHaveProperty('dropdown')
       expect(parsed.state).not.toHaveProperty('editorState')
     })
+
+    it('skills / skillsLoadedAt は永続化対象外', () => {
+      usePromptPaletteStore.setState({
+        skills: [
+          {
+            kind: 'user',
+            name: 'foo',
+            path: '/home/u/.claude/skills/foo/SKILL.md',
+          },
+        ],
+        skillsLoadedAt: Date.now(),
+      })
+      // persist middleware は setState を同期で localStorage に書き出す。
+      usePromptPaletteStore.getState().upsertTemplate({ name: 'trigger', body: 'x' })
+      const raw = localStorage.getItem('spec-prompt:prompt-palette')
+      expect(raw).toBeTruthy()
+      const parsed = JSON.parse(raw as string) as { state: Record<string, unknown> }
+      expect(parsed.state).not.toHaveProperty('skills')
+      expect(parsed.state).not.toHaveProperty('skillsLoadedAt')
+    })
+  })
+})
+
+describe('promptPaletteStore — Phase B: Skill ロード', () => {
+  beforeEach(() => {
+    resetStore()
+    listSkillsMock.mockReset()
+  })
+
+  it('loadSkills 成功時に skills / skillsLoadedAt が更新される', async () => {
+    listSkillsMock.mockResolvedValueOnce([
+      { kind: 'user', name: 'alpha', path: '/u/alpha/SKILL.md' },
+    ])
+    await usePromptPaletteStore.getState().loadSkills('/my/project')
+    expect(listSkillsMock).toHaveBeenCalledWith('/my/project')
+    const state = usePromptPaletteStore.getState()
+    expect(state.skills).toHaveLength(1)
+    expect(state.skills[0].name).toBe('alpha')
+    expect(state.skillsLoadedAt).not.toBeNull()
+  })
+
+  it('loadSkills 失敗時は skills=[], skillsLoadedAt=null のまま（再試行可能）', async () => {
+    listSkillsMock.mockRejectedValueOnce(new Error('boom'))
+    await usePromptPaletteStore.getState().loadSkills()
+    const state = usePromptPaletteStore.getState()
+    expect(state.skills).toHaveLength(0)
+    expect(state.skillsLoadedAt).toBeNull()
+  })
+
+  it('loadSkills は projectRoot 未指定で undefined を渡す', async () => {
+    listSkillsMock.mockResolvedValueOnce([])
+    await usePromptPaletteStore.getState().loadSkills()
+    expect(listSkillsMock).toHaveBeenCalledWith(undefined)
   })
 })

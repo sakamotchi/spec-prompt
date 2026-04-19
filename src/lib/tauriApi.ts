@@ -2,6 +2,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen, UnlistenFn } from "@tauri-apps/api/event";
 import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
 import { open } from "@tauri-apps/plugin-dialog";
+import type { SkillMetadata } from "./slashSuggestItem";
 
 export interface FileNode {
   name: string;
@@ -179,6 +180,10 @@ export const tauriApi = {
 
   getBranch: (cwd: string): Promise<string | null> =>
     invoke("git_branch", { cwd }),
+
+  // Claude Code Skills
+  listSkills: (projectRoot?: string): Promise<SkillMetadata[]> =>
+    invoke("list_claude_skills", { projectRoot: projectRoot ?? null }),
 };
 
 export interface GitFileStatus {

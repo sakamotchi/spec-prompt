@@ -3,6 +3,7 @@ import * as Dialog from '@radix-ui/react-dialog'
 import { BookTemplate, History } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { usePromptPaletteStore } from '../../stores/promptPaletteStore'
+import { useAppStore } from '../../stores/appStore'
 import { tauriApi } from '../../lib/tauriApi'
 import { toast } from '../Toast'
 import { usePromptHistoryCursor } from '../../hooks/usePromptHistoryCursor'
@@ -34,6 +35,17 @@ export function PromptPalette() {
   )
   const dropdown = usePromptPaletteStore((s) => s.dropdown)
   const editorState = usePromptPaletteStore((s) => s.editorState)
+  const skillsLoadedAt = usePromptPaletteStore((s) => s.skillsLoadedAt)
+  const projectRoot = useAppStore((s) => s.projectRoot)
+
+  // パレット初回オープン時に Skill を非同期ロード（キャッシュ有効時は no-op）
+  useEffect(() => {
+    if (!isOpen) return
+    if (skillsLoadedAt !== null) return
+    void usePromptPaletteStore
+      .getState()
+      .loadSkills(projectRoot ?? undefined)
+  }, [isOpen, skillsLoadedAt, projectRoot])
 
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const slashSuggestRef = useRef<SlashSuggestHandle>(null)

@@ -1,6 +1,8 @@
 import type { RefObject } from 'react'
 import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
+import { tauriApi } from '../lib/tauriApi'
+import type { SkillMetadata } from '../lib/slashSuggestItem'
 
 export type PromptPaletteTextareaRef = RefObject<HTMLTextAreaElement | null>
 
@@ -43,6 +45,11 @@ export interface PromptPaletteState {
   dropdown: DropdownKind
   editorState: PaletteEditorState
 
+  // Phase B: ユーザー/プロジェクト Skill の runtime キャッシュ（永続化しない）
+  skills: SkillMetadata[]
+  /** 初回ロード済みのタイムスタンプ。null は未ロード */
+  skillsLoadedAt: number | null
+
   open: (ptyId: string, tabName: string) => void
   close: () => void
   setDraft: (ptyId: string, value: string) => void
@@ -60,6 +67,14 @@ export interface PromptPaletteState {
   removeTemplate: (id: string) => void
   openEditor: (state: NonNullable<PaletteEditorState>) => void
   closeEditor: () => void
+
+  /**
+   * `~/.claude/skills/` と `<projectRoot>/.claude/skills/` をスキャンし、
+   * runtime キャッシュ（`skills` / `skillsLoadedAt`）に反映する。
+   * - 成功時は `skillsLoadedAt = Date.now()` で 2 回目以降の IPC 呼び出しを抑制
+   * - 失敗時は `skillsLoadedAt = null` を維持し、次回オープン時に再試行できる
+   */
+  loadSkills: (projectRoot?: string) => Promise<void>
 }
 
 const HISTORY_LIMIT = 100
@@ -108,6 +123,9 @@ export const usePromptPaletteStore = create<PromptPaletteState>()(
       historyCursor: null,
       dropdown: 'none',
       editorState: null,
+
+      skills: [],
+      skillsLoadedAt: null,
 
       open: (ptyId, tabName) =>
         set({ isOpen: true, targetPtyId: ptyId, targetTabName: tabName }),
@@ -205,6 +223,16 @@ export const usePromptPaletteStore = create<PromptPaletteState>()(
 
       openEditor: (editorState) => set({ editorState }),
       closeEditor: () => set({ editorState: null }),
+
+      loadSkills: async (projectRoot) => {
+        try {
+          const list = await tauriApi.listSkills(projectRoot)
+          set({ skills: list, skillsLoadedAt: Date.now() })
+        } catch {
+          // 失敗時は skillsLoadedAt を更新せず、次回オープンで再試行可能にする。
+          // UI 側のトースト表示は PromptPalette 側で行う想定（ここでは副作用を起こさない）。
+        }
+      },
     }),
     {
       name: PERSIST_KEY,

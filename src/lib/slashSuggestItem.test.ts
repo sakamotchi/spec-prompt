@@ -95,7 +95,7 @@ describe('getSlashSuggestCandidates', () => {
 
   it('ユーザー Skill はセクションに含まれる', () => {
     const userSkills: SkillMetadata[] = [
-      { name: 'my-audit', description: 'Audit', path: '/u/my-audit/SKILL.md' },
+      { kind: 'user', name: 'my-audit', description: 'Audit', path: '/u/my-audit/SKILL.md' },
     ]
     const sections = getSlashSuggestCandidates({
       templates: [],
@@ -110,11 +110,11 @@ describe('getSlashSuggestCandidates', () => {
 
   it('同名のユーザー Skill とプロジェクト Skill があった場合、ユーザー側のみ残る', () => {
     const userSkills: SkillMetadata[] = [
-      { name: 'dup', description: 'U', path: '/u/dup/SKILL.md' },
+      { kind: 'user', name: 'dup', description: 'U', path: '/u/dup/SKILL.md' },
     ]
     const projectSkills: SkillMetadata[] = [
-      { name: 'dup', description: 'P', path: '/p/dup/SKILL.md' },
-      { name: 'only-project', description: 'P2', path: '/p/only/SKILL.md' },
+      { kind: 'project', name: 'dup', description: 'P', path: '/p/dup/SKILL.md' },
+      { kind: 'project', name: 'only-project', description: 'P2', path: '/p/only/SKILL.md' },
     ]
     const sections = getSlashSuggestCandidates({
       templates: [],

@@ -12,11 +12,14 @@ export type SlashSuggestKind =
   | 'user-skill'
   | 'project-skill'
 
-/** Phase B で Rust 側から受け取る Skill メタデータ（型のみ先行定義） */
+/** Rust `list_claude_skills` が返す Skill メタデータ */
 export interface SkillMetadata {
+  /** ユーザー (`~/.claude/skills/`) / プロジェクト (`<projectRoot>/.claude/skills/`) の出所 */
+  kind: 'user' | 'project'
   name: string
   description?: string
   argumentHint?: string
+  /** SKILL.md の絶対パス */
   path: string
 }
 
