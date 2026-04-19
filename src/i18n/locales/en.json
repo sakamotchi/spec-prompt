@@ -93,7 +93,11 @@
       "newline": "Enter: newline",
       "submit": "⌘Enter: send",
       "submitCtrl": "Ctrl+Enter: send",
-      "cancel": "Esc: close"
+      "cancel": "Esc: close",
+      "historyUp": "↑ to recall last",
+      "historyDown": "↓ to go back",
+      "historyOpen": "⌘H for history",
+      "templateOpen": "⌘T for templates"
     },
     "button": {
       "submit": "Send",
@@ -101,6 +105,39 @@
     },
     "menu": {
       "openPalette": "Edit Prompt..."
+    },
+    "history": {
+      "title": "History",
+      "empty": "No history yet",
+      "searchPlaceholder": "Search history",
+      "saveAsTemplate": "Save as template",
+      "ariaLabel": "Send history list",
+      "openHint": "Open history"
+    },
+    "template": {
+      "title": "Templates",
+      "empty": "No templates yet",
+      "searchPlaceholder": "Search templates",
+      "new": "New",
+      "edit": "Edit",
+      "delete": "Delete",
+      "ariaLabel": "Templates list",
+      "openHint": "Open templates",
+      "editor": {
+        "title": "Edit template",
+        "name": "Name",
+        "body": "Body",
+        "save": "Save",
+        "cancel": "Cancel",
+        "deleteConfirm": "Delete this template?",
+        "error": {
+          "nameEmpty": "Name is required",
+          "nameTooLong": "Name must be 255 characters or fewer",
+          "nameDuplicate": "A template with the same name already exists",
+          "bodyEmpty": "Body is required",
+          "bodyTooLong": "Body must be 10,000 characters or fewer"
+        }
+      }
     },
     "error": {
       "sendFailed": "Failed to send prompt: {{message}}"
@@ -128,6 +165,8 @@
       "newWindow": "Open New Window",
       "pathPalette": "Path Search Palette",
       "promptPalette": "Prompt Edit Palette",
+      "promptHistory": "In palette: Open prompt history",
+      "promptTemplate": "In palette: Open prompt templates",
       "shortcutList": "Shortcut List"
     }
   },

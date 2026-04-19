@@ -93,7 +93,11 @@
       "newline": "Enter: 改行",
       "submit": "⌘Enter: 送信",
       "submitCtrl": "Ctrl+Enter: 送信",
-      "cancel": "Esc: 閉じる"
+      "cancel": "Esc: 閉じる",
+      "historyUp": "↑ で直近を呼び出し",
+      "historyDown": "↓ で戻る",
+      "historyOpen": "⌘H で履歴一覧",
+      "templateOpen": "⌘T でテンプレート一覧"
     },
     "button": {
       "submit": "送信",
@@ -101,6 +105,39 @@
     },
     "menu": {
       "openPalette": "プロンプトを編集..."
+    },
+    "history": {
+      "title": "履歴",
+      "empty": "送信履歴はまだありません",
+      "searchPlaceholder": "履歴を検索",
+      "saveAsTemplate": "テンプレートとして保存",
+      "ariaLabel": "送信履歴一覧",
+      "openHint": "履歴を開く"
+    },
+    "template": {
+      "title": "テンプレート",
+      "empty": "テンプレートはまだ登録されていません",
+      "searchPlaceholder": "テンプレートを検索",
+      "new": "新規作成",
+      "edit": "編集",
+      "delete": "削除",
+      "ariaLabel": "テンプレート一覧",
+      "openHint": "テンプレートを開く",
+      "editor": {
+        "title": "テンプレート編集",
+        "name": "名前",
+        "body": "本文",
+        "save": "保存",
+        "cancel": "キャンセル",
+        "deleteConfirm": "このテンプレートを削除しますか？",
+        "error": {
+          "nameEmpty": "名前を入力してください",
+          "nameTooLong": "名前は 255 文字以内で入力してください",
+          "nameDuplicate": "同じ名前のテンプレートが既に存在します",
+          "bodyEmpty": "本文を入力してください",
+          "bodyTooLong": "本文は 10,000 文字以内で入力してください"
+        }
+      }
     },
     "error": {
       "sendFailed": "プロンプトの送信に失敗しました: {{message}}"
@@ -128,6 +165,8 @@
       "newWindow": "新規ウィンドウを開く",
       "pathPalette": "パス検索パレット",
       "promptPalette": "プロンプト編集パレット",
+      "promptHistory": "パレット内: プロンプト履歴を開く",
+      "promptTemplate": "パレット内: プロンプトテンプレートを開く",
       "shortcutList": "ショートカット一覧"
     }
   },

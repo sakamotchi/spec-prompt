@@ -87,8 +87,7 @@ export const useSettingsStore = create<SettingsState>()((set, get) => ({
 
   loadSettings: async () => {
     // Rust 側は snake_case の JSON を返す
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const s: any = await tauriApi.getAppearance()
+    const s = await tauriApi.getAppearance()
     const mapped: AppearanceSettings = {
       theme: (s.theme as Theme) ?? 'dark',
       contentFontFamily: s.content_font_family,
@@ -104,7 +103,6 @@ export const useSettingsStore = create<SettingsState>()((set, get) => ({
   saveSettings: async () => {
     const { theme, contentFontFamily, contentFontSize, terminalFontFamily, terminalFontSize, notificationEnabled } = get()
     // Rust 側は snake_case の JSON を期待する
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     await tauriApi.saveAppearance({
       theme,
       content_font_family: contentFontFamily,
@@ -112,6 +110,6 @@ export const useSettingsStore = create<SettingsState>()((set, get) => ({
       terminal_font_family: terminalFontFamily,
       terminal_font_size: terminalFontSize,
       notification_enabled: notificationEnabled,
-    } as any)
+    })
   },
 }))

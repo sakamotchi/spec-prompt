@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest'
 import { usePromptPaletteStore, type PromptPaletteTextareaRef } from './promptPaletteStore'
 
 function resetStore() {
+  localStorage.removeItem('spec-prompt:prompt-palette')
   usePromptPaletteStore.setState({
     isOpen: false,
     targetPtyId: null,
@@ -9,6 +10,11 @@ function resetStore() {
     drafts: {},
     textareaRef: null,
     lastInsertAt: 0,
+    history: [],
+    templates: [],
+    historyCursor: null,
+    dropdown: 'none',
+    editorState: null,
   })
 }
 
@@ -182,5 +188,204 @@ describe('promptPaletteStore', () => {
     usePromptPaletteStore.getState().registerTextarea(null)
     usePromptPaletteStore.getState().insertAtCaret('X')
     expect(usePromptPaletteStore.getState().lastInsertAt).toBe(5)
+  })
+})
+
+describe('promptPaletteStore — Phase 1: 履歴・テンプレート基盤', () => {
+  beforeEach(resetStore)
+
+  describe('pushHistory', () => {
+    it('空または空白のみは追加されない', () => {
+      const { pushHistory } = usePromptPaletteStore.getState()
+      pushHistory('')
+      pushHistory('   \n  ')
+      expect(usePromptPaletteStore.getState().history).toHaveLength(0)
+    })
+
+    it('末尾空白は trim されて格納される', () => {
+      usePromptPaletteStore.getState().pushHistory('hi\n\n')
+      expect(usePromptPaletteStore.getState().history[0].body).toBe('hi')
+    })
+
+    it('直前と同じ body は追加されない（連続重複排除）', () => {
+      const { pushHistory } = usePromptPaletteStore.getState()
+      pushHistory('hello')
+      pushHistory('hello')
+      expect(usePromptPaletteStore.getState().history).toHaveLength(1)
+    })
+
+    it('間に別の body が挟まった再登場は別エントリとして残る', () => {
+      const { pushHistory } = usePromptPaletteStore.getState()
+      pushHistory('a')
+      pushHistory('b')
+      pushHistory('a')
+      const bodies = usePromptPaletteStore.getState().history.map((h) => h.body)
+      expect(bodies).toEqual(['a', 'b', 'a'])
+    })
+
+    it('新しい順に先頭へ積まれる', () => {
+      const { pushHistory } = usePromptPaletteStore.getState()
+      pushHistory('old')
+      pushHistory('new')
+      const [first, second] = usePromptPaletteStore.getState().history
+      expect(first.body).toBe('new')
+      expect(second.body).toBe('old')
+    })
+
+    it('100 件上限を超えると末尾（最古）が破棄される', () => {
+      const { pushHistory } = usePromptPaletteStore.getState()
+      for (let i = 0; i < 101; i++) pushHistory(`p-${i}`)
+      const { history } = usePromptPaletteStore.getState()
+      expect(history).toHaveLength(100)
+      expect(history[0].body).toBe('p-100')
+      expect(history[99].body).toBe('p-1')
+    })
+
+    it('push 時に historyCursor が null にリセットされる', () => {
+      const { pushHistory, setHistoryCursor } = usePromptPaletteStore.getState()
+      pushHistory('a')
+      pushHistory('b')
+      setHistoryCursor(0)
+      expect(usePromptPaletteStore.getState().historyCursor).toBe(0)
+      pushHistory('c')
+      expect(usePromptPaletteStore.getState().historyCursor).toBeNull()
+    })
+  })
+
+  describe('setHistoryCursor', () => {
+    it('null を指定すると解除される', () => {
+      const { pushHistory, setHistoryCursor } = usePromptPaletteStore.getState()
+      pushHistory('a')
+      setHistoryCursor(0)
+      setHistoryCursor(null)
+      expect(usePromptPaletteStore.getState().historyCursor).toBeNull()
+    })
+
+    it('範囲内の index はそのままセットされる', () => {
+      const { pushHistory, setHistoryCursor } = usePromptPaletteStore.getState()
+      pushHistory('a')
+      pushHistory('b')
+      setHistoryCursor(1)
+      expect(usePromptPaletteStore.getState().historyCursor).toBe(1)
+    })
+
+    it('負値は null にクランプ', () => {
+      const { pushHistory, setHistoryCursor } = usePromptPaletteStore.getState()
+      pushHistory('a')
+      setHistoryCursor(-1)
+      expect(usePromptPaletteStore.getState().historyCursor).toBeNull()
+    })
+
+    it('履歴数以上の index は null にクランプ', () => {
+      const { pushHistory, setHistoryCursor } = usePromptPaletteStore.getState()
+      pushHistory('a')
+      setHistoryCursor(5)
+      expect(usePromptPaletteStore.getState().historyCursor).toBeNull()
+    })
+  })
+
+  describe('openDropdown / closeDropdown', () => {
+    it('openDropdown で kind がセットされる', () => {
+      usePromptPaletteStore.getState().openDropdown('history')
+      expect(usePromptPaletteStore.getState().dropdown).toBe('history')
+    })
+
+    it('closeDropdown で none に戻る', () => {
+      const s = usePromptPaletteStore.getState()
+      s.openDropdown('template')
+      s.closeDropdown()
+      expect(usePromptPaletteStore.getState().dropdown).toBe('none')
+    })
+  })
+
+  describe('upsertTemplate', () => {
+    it('id 未指定は新規作成される', () => {
+      const t = usePromptPaletteStore
+        .getState()
+        .upsertTemplate({ name: 'x', body: 'y' })
+      expect(t.id).toBeTruthy()
+      expect(t.updatedAt).toBeGreaterThan(0)
+      expect(usePromptPaletteStore.getState().templates).toHaveLength(1)
+    })
+
+    it('同じ id は上書きされる（件数は増えない）', () => {
+      const { upsertTemplate } = usePromptPaletteStore.getState()
+      const t = upsertTemplate({ name: 'x', body: 'y' })
+      upsertTemplate({ id: t.id, name: 'x2', body: 'y2' })
+      const tpls = usePromptPaletteStore.getState().templates
+      expect(tpls).toHaveLength(1)
+      expect(tpls[0].name).toBe('x2')
+      expect(tpls[0].body).toBe('y2')
+    })
+
+    it('異なる id は別エントリとして追加される', () => {
+      const { upsertTemplate } = usePromptPaletteStore.getState()
+      upsertTemplate({ name: 'a', body: '1' })
+      upsertTemplate({ name: 'b', body: '2' })
+      expect(usePromptPaletteStore.getState().templates).toHaveLength(2)
+    })
+  })
+
+  describe('removeTemplate', () => {
+    it('指定 id のみ削除される', () => {
+      const { upsertTemplate, removeTemplate } = usePromptPaletteStore.getState()
+      const a = upsertTemplate({ name: 'a', body: '1' })
+      upsertTemplate({ name: 'b', body: '2' })
+      removeTemplate(a.id)
+      const tpls = usePromptPaletteStore.getState().templates
+      expect(tpls).toHaveLength(1)
+      expect(tpls[0].name).toBe('b')
+    })
+
+    it('存在しない id を指定しても落ちない', () => {
+      const { upsertTemplate, removeTemplate } = usePromptPaletteStore.getState()
+      upsertTemplate({ name: 'a', body: '1' })
+      removeTemplate('nonexistent')
+      expect(usePromptPaletteStore.getState().templates).toHaveLength(1)
+    })
+  })
+
+  describe('openEditor / closeEditor', () => {
+    it('openEditor で editorState がセットされる', () => {
+      usePromptPaletteStore.getState().openEditor({ mode: 'create' })
+      expect(usePromptPaletteStore.getState().editorState).toEqual({ mode: 'create' })
+    })
+
+    it('closeEditor で null に戻る', () => {
+      const s = usePromptPaletteStore.getState()
+      s.openEditor({ mode: 'edit', templateId: 'abc' })
+      s.closeEditor()
+      expect(usePromptPaletteStore.getState().editorState).toBeNull()
+    })
+  })
+
+  describe('persist', () => {
+    it('history と templates は localStorage に書き出される', () => {
+      usePromptPaletteStore.getState().pushHistory('persisted')
+      usePromptPaletteStore.getState().upsertTemplate({ name: 'keep', body: 'body' })
+      const raw = localStorage.getItem('spec-prompt:prompt-palette')
+      expect(raw).toBeTruthy()
+      const parsed = JSON.parse(raw as string) as {
+        state: { history: Array<{ body: string }>; templates: Array<{ name: string }> }
+        version: number
+      }
+      expect(parsed.version).toBe(1)
+      expect(parsed.state.history[0].body).toBe('persisted')
+      expect(parsed.state.templates[0].name).toBe('keep')
+    })
+
+    it('drafts や isOpen などランタイム状態は永続化対象外', () => {
+      const s = usePromptPaletteStore.getState()
+      s.open('pty-1', 'zsh')
+      s.setDraft('pty-1', 'runtime only')
+      s.openDropdown('history')
+      const raw = localStorage.getItem('spec-prompt:prompt-palette')
+      expect(raw).toBeTruthy()
+      const parsed = JSON.parse(raw as string) as { state: Record<string, unknown> }
+      expect(parsed.state).not.toHaveProperty('drafts')
+      expect(parsed.state).not.toHaveProperty('isOpen')
+      expect(parsed.state).not.toHaveProperty('dropdown')
+      expect(parsed.state).not.toHaveProperty('editorState')
+    })
   })
 })

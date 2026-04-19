@@ -1,8 +1,8 @@
 # ユビキタス言語定義書
 
-**バージョン**: 1.2
+**バージョン**: 1.3
 **作成日**: 2026年3月28日
-**最終更新**: 2026年4月18日
+**最終更新**: 2026年4月19日
 
 ---
 
@@ -105,7 +105,7 @@
 | 用語 | 英語表記 | 定義 | コード上の表現 |
 |------|---------|------|---------------|
 | プロンプト編集パレット | Prompt Palette | 対話 CLI 宛てのプロンプトを誤送信なく推敲する非モーダルなモーダル UI | `PromptPalette` |
-| プロンプトストア | Prompt Palette Store | 開閉状態・送信先・下書きを管理する Zustand ストア | `usePromptPaletteStore` |
+| プロンプトストア | Prompt Palette Store | 開閉状態・送信先・下書き・履歴・テンプレートを管理する Zustand ストア | `usePromptPaletteStore` |
 | 送信先タブ | Target Terminal Tab | パレット起動時に固定される送信先の `ptyId` と表示タイトル | `targetPtyId`, `targetTabName` |
 | 下書き | Draft | タブごとにメモリで保持するプロンプト本文 | `drafts: Record<string, string>` |
 | キャレット挿入 | Insert At Caret | 選択範囲置換 + drafts 同期 + キャレット復元を行うテキスト挿入 API | `insertAtCaret()` |
@@ -113,6 +113,36 @@
 | 送信 | Submit Prompt | `Cmd+Enter` / `Ctrl+Enter` / 送信ボタンで本文 + `\n` を `writePty` する操作 | `handleSubmit()` |
 | 非モーダル | Non-modal | Radix Dialog を `modal={false}` + overlay `pointer-events: none` で表示する仕様 | - |
 | allow list | Allow List | パレット表示中に唯一発火を許可するグローバルショートカットの一覧（`Ctrl+P` / `Cmd+Shift+P`） | `AppLayout` の早期 return |
+
+### 2.9 プロンプト履歴（Prompt History、v1.1）
+
+| 用語 | 英語表記 | 定義 | コード上の表現 |
+|------|---------|------|---------------|
+| プロンプト履歴 | Prompt History | 送信に成功したプロンプト本文を時系列に蓄積するリスト | `history: PromptHistoryEntry[]` |
+| 履歴エントリ | Prompt History Entry | `id` / `body` / `createdAt` を持つ 1 件の履歴レコード | `PromptHistoryEntry` |
+| 履歴カーソル | History Cursor | `↑`/`↓` 巡回中の現在位置インデックス。`null` で未巡回 | `historyCursor: number \| null` |
+| 履歴巡回 | History Navigation | textarea が空または巡回由来のときに `↑`/`↓` で履歴を遡る操作 | `usePromptHistoryCursor` |
+| 履歴ドロップダウン | Prompt History Dropdown | `⌘H` / ヘッダアイコンで開く履歴一覧の inline dropdown | `PromptHistoryDropdown` |
+| 履歴 push | Push History | 送信成功時に trim 済み本文を先頭に追加し、直前重複排除 + 100 件上限を適用 | `pushHistory(body)` |
+| 段階剥離 | Layered Dismiss | ドロップダウン or エディタ表示中の `Esc` は子要素のみ閉じ、親パレットは残す挙動 | `Dialog.Content.onEscapeKeyDown` |
+
+### 2.10 プロンプトテンプレート（Prompt Template、v1.1）
+
+| 用語 | 英語表記 | 定義 | コード上の表現 |
+|------|---------|------|---------------|
+| プロンプトテンプレート | Prompt Template | 再利用可能なプロンプト本文。`name` / `body` / `tags` / `updatedAt` を持つ | `PromptTemplate` |
+| プレースホルダ | Placeholder | テンプレ本文中の `{{name}}` 記法。流し込み時に最初が選択状態、`Tab` で次へ | `Placeholder` |
+| プレースホルダパース | Parse Placeholders | 本文中の `{{...}}` の `{start, end, name}` リストを返す純関数 | `parsePlaceholders()` |
+| 次プレースホルダ検索 | Find Next Placeholder | キャレット以降の最初の `{{...}}` を返す | `findNextPlaceholder()` |
+| 前プレースホルダ検索 | Find Previous Placeholder | キャレット以前の最後の `{{...}}` を返す（`Shift+Tab` 用） | `findPreviousPlaceholder()` |
+| テンプレドロップダウン | Prompt Template Dropdown | `⌘T` / ヘッダアイコンで開くテンプレ一覧 inline dropdown。行内 Edit/Delete アイコン付き | `PromptTemplateDropdown` |
+| テンプレエディタ | Prompt Template Editor | Radix Dialog（`modal=true`）で name/body を CRUD する子モーダル | `PromptTemplateEditor` |
+| エディタ状態 | Editor State | エディタの表示モードと初期値を保持するストアフィールド | `editorState: \| { mode: 'create'; initialBody? } \| { mode: 'edit'; templateId } \| null` |
+| テンプレバリデーション | Template Validation | name 空/長さ/重複、body 空/長さをチェックする純関数 | `validateTemplate()` |
+| テンプレ流し込み | Apply Template Body | draft を置換し、プレースホルダ選択状態化・dropdown close・textarea focus を一括で行う共通関数 | `applyTemplateBodyToDraft()` |
+| スラッシュサジェスト | Slash Suggest | textarea 先頭 `/` で表示されるインライン候補 popover | `SlashSuggest` |
+| スラッシュクエリ | Slash Query | draft が `/` で始まり改行・空白を含まないトークンから抽出するクエリ文字列 | `parseSlashQuery()` |
+| 履歴→テンプレ昇格 | Promote History To Template | 履歴行の `FilePlus` クリックでエディタを `initialBody` 付き create モードで開く操作 | - |
 
 ---
 
@@ -234,3 +264,4 @@
 | 2026-03-28 | 1.0 | 初版作成 | - |
 | 2026-04-14 | 1.1 | Claude Code 通知・OSC タイトル・手動リネーム・未読通知・alacritty_terminal・外観設定の用語を追加 | - |
 | 2026-04-18 | 1.2 | プロンプト編集パレット（§2.8）・ディスパッチ分岐・プロンプトパレットストア・トーストの用語を追加 | - |
+| 2026-04-19 | 1.3 | プロンプト履歴（§2.9）・プロンプトテンプレート（§2.10）・プレースホルダ・SlashSuggest・段階剥離の用語を追加 | - |
