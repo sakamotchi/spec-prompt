@@ -199,7 +199,7 @@ Phase A では追加なし。
 
 ```
 ┌─ /rev ──────────────────────────────┐
-│  COMMANDS                            │  ← セクション見出し (i18n)
+│  CLAUDE CODE                         │  ← セクション見出し (i18n)
 │  [CMD] review       Review a session │  ← activeIndex 非選択
 │  [CMD] rewind       Rewind to ...    │
 │                                      │
@@ -311,7 +311,7 @@ describe('getSlashSuggestCandidates', () => {
 // src/components/PromptPalette/SlashSuggest.test.tsx（追加分）
 it('セクション見出しとバッジが表示される', () => {
   // テンプレと BUILT_IN_COMMANDS 混在で render
-  // "Commands" / "Templates" 見出しが出ること
+  // "Claude Code" / "Templates" 見出しが出ること
   // 各行に "CMD" / "TPL" バッジが出ること
 })
 
@@ -343,3 +343,13 @@ Phase A では Rust 変更なし。
 
 - [ ] 組み込みコマンド `/usage` は 2026-04 時点の公式 docs に記載があるが、バージョンによっては `/cost` に統合されている可能性 → 実機確認で有効なもののみ残すか全件残すかを TA-9 で判断
 - [ ] バッジのカラーを kind 毎に変える案（CMD=青, TPL=緑）はスコープ外として初版ではすべて muted 系で統一。UX 評価後に Phase B 以降で再検討
+
+## 追加変更（実装中に判明 / v1.2 反映）
+
+### 1. キー委譲（PE-47）
+
+初期設計では `SlashSuggest` の `onKeyDown` を自身のルート `<div>` に付けるだけだったが、実機では textarea にフォーカスがあり、keydown イベントが兄弟要素の SlashSuggest にはバブルしないことが判明。`forwardRef` + `useImperativeHandle` で `SlashSuggestHandle.handleKeyDown(e): boolean` を公開し、`PromptPalette.handleKeyDown` が textarea 上で最優先に委譲する構成に変更。これにより `↑`/`↓`/`Enter`/`Tab` すべてが textarea フォーカス時も動作する。副次的に **Tab で確定** のリクエストも同一経路で実現。
+
+### 2. オーバーフロー抑止（PE-48）
+
+候補が多い（組み込み 10 件 + テンプレ複数）と SlashSuggest が縦方向に伸び、`top: 1/3` に位置するパレットの下端がウィンドウ外に切れる問題が発生。候補リスト（ルート `<div>`）に `max-height: 40vh` + `overflow-y: auto` を付与し、`activeIndex` 変更時に該当行へ `scrollIntoView({ block: 'nearest' })` で可視範囲を追従させる実装を追加。各行には `data-slash-index={globalIndex}` を付けてクエリ対象にする。

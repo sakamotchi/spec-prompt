@@ -65,7 +65,7 @@
   - 規模: M
 
 - [ ] **TA-8**: i18n リソース追加
-  - 内容: セクション見出し 4 種（Commands/User Skills/Project Skills/Templates）とバッジラベル 4 種を ja/en に追加
+  - 内容: セクション見出し 4 種（Claude Code/User Skills/Project Skills/Templates）とバッジラベル 4 種を ja/en に追加
   - 成果物: `src/i18n/locales/ja.json`、`src/i18n/locales/en.json`
   - 依存: TA-4
   - 規模: S
