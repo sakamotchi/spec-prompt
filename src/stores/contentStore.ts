@@ -7,6 +7,7 @@ export interface ContentTab {
   content: string | null
   viewMode: ViewMode
   isLoading: boolean
+  scrollTop: number
 }
 
 export interface ContentGroup {
@@ -26,6 +27,7 @@ interface ContentState {
   setFocusedPane: (pane: 'primary' | 'secondary') => void
   setTabContent: (tabId: string, filePath: string, content: string, viewMode: ViewMode) => void
   setTabLoading: (tabId: string, loading: boolean) => void
+  setScrollTop: (tabId: string, scrollTop: number) => void
   toggleSplit: () => void
   moveTab: (tabId: string, fromPane: 'primary' | 'secondary', toPane: 'primary' | 'secondary') => void
   closeTabByPath: (filePath: string) => void
@@ -44,6 +46,7 @@ const makeTab = (overrides?: Partial<ContentTab>): ContentTab => ({
   content: null,
   viewMode: 'plain',
   isLoading: false,
+  scrollTop: 0,
   ...overrides,
 })
 
@@ -138,6 +141,14 @@ export const useContentStore = create<ContentState>((set) => ({
       ...updateBothGroups(state, (g) => ({
         ...g,
         tabs: g.tabs.map((t) => (t.id === tabId ? { ...t, isLoading } : t)),
+      })),
+    })),
+
+  setScrollTop: (tabId, scrollTop) =>
+    set((state) => ({
+      ...updateBothGroups(state, (g) => ({
+        ...g,
+        tabs: g.tabs.map((t) => (t.id === tabId ? { ...t, scrollTop } : t)),
       })),
     })),
 

@@ -11,6 +11,7 @@ function makeTab(filePath: string | null = null) {
     content: null,
     viewMode: 'plain' as const,
     isLoading: false,
+    scrollTop: 0,
   }
 }
 

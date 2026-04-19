@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { createHighlighter } from 'shiki'
 import { useSettingsStore } from '../../stores/settingsStore'
 import { toFontFamilyCSS } from '../../lib/fontFamily'
 import { EXT_TO_LANG, SHIKI_LANGS } from '../../lib/shikiLangs'
+import { useTabScroll } from './useTabScroll'
 
 let highlighterPromise: ReturnType<typeof createHighlighter> | null = null
 
@@ -23,9 +24,19 @@ function resolveTheme(theme: string): 'dark' | 'light' {
   return theme as 'dark' | 'light'
 }
 
-export function CodeViewer({ content, filePath }: { content: string; filePath: string }) {
+export function CodeViewer({
+  tabId,
+  content,
+  filePath,
+}: {
+  tabId: string
+  content: string
+  filePath: string
+}) {
   const [html, setHtml] = useState('')
   const [lineCount, setLineCount] = useState(0)
+  const scrollRef = useRef<HTMLDivElement>(null)
+  useTabScroll(tabId, scrollRef, [html])
   const contentFontFamily = useSettingsStore((s) => s.contentFontFamily)
   const contentFontSize = useSettingsStore((s) => s.contentFontSize)
   const theme = useSettingsStore((s) => s.theme)
@@ -53,6 +64,7 @@ export function CodeViewer({ content, filePath }: { content: string; filePath: s
 
   return (
     <div
+      ref={scrollRef}
       className="h-full overflow-auto flex text-sm"
       style={{
         background: 'var(--color-bg-base)',

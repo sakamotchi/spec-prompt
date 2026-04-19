@@ -5,6 +5,7 @@ import { convertFileSrc } from '@tauri-apps/api/core'
 import { useSettingsStore } from '../../stores/settingsStore'
 import { useContentStore } from '../../stores/contentStore'
 import { toFontFamilyCSS } from '../../lib/fontFamily'
+import { useTabScroll } from './useTabScroll'
 
 function resolveRelativePath(basePath: string, href: string): string {
   const parts = basePath.split('/')
@@ -16,9 +17,18 @@ function resolveRelativePath(basePath: string, href: string): string {
   return parts.join('/')
 }
 
-export function MarkdownPreview({ content, filePath }: { content: string; filePath?: string }) {
+export function MarkdownPreview({
+  tabId,
+  content,
+  filePath,
+}: {
+  tabId: string
+  content: string
+  filePath?: string
+}) {
   const [html, setHtml] = useState('')
   const containerRef = useRef<HTMLDivElement>(null)
+  useTabScroll(tabId, containerRef, [html])
 
   const openFile = useContentStore((s) => s.openFile)
   const theme = useSettingsStore((s) => s.theme)
