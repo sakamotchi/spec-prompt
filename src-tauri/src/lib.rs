@@ -3,7 +3,7 @@ mod terminal;
 
 use commands::config::{add_recent_project, get_appearance, get_recent_projects, save_appearance};
 use commands::fonts::load_font_bytes;
-use commands::git::git_status;
+use commands::git::{git_branch, git_status};
 use commands::filesystem::{
     copy_path, create_dir, create_file, delete_path, open_in_editor, read_dir, read_file,
     rename_path, write_file,
@@ -122,6 +122,7 @@ pub fn run() {
             save_appearance,
             load_font_bytes,
             git_status,
+            git_branch,
             send_notification,
             set_pty_display_title,
         ])

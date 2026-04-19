@@ -1,8 +1,8 @@
 # 機能設計書
 
-**バージョン**: 1.3
+**バージョン**: 1.4
 **作成日**: 2026年3月28日
-**最終更新**: 2026年4月18日
+**最終更新**: 2026年4月19日
 
 ---
 
@@ -18,6 +18,7 @@
 | パス入力支援 | ツリーからターミナルへのパス挿入 | [features/path-palette.md](features/path-palette.md) |
 | プロンプト編集パレット | 対話 CLI 宛てのプロンプトを誤送信なく推敲する非モーダル UI | [features/prompt-palette.md](features/prompt-palette.md) |
 | Claude Code 通知 | OSC 9・HTTP フックを検出して OS ネイティブ通知を発火 | [features/notification.md](features/notification.md) |
+| ステータスバー | 画面下段に現在の Git ブランチとファイル種別を常時表示 | 本ドキュメント §3.7 |
 
 ---
 
@@ -133,6 +134,19 @@
 | パス形式設定 | 相対/絶対パスを設定で切り替え | `Config` |
 | ディスパッチ分岐 | プロンプト編集パレット表示中は PTY ではなく textarea に挿入する | `usePathInsertion` |
 
+### 3.7 ステータスバー機能
+
+画面最下段に常設する高さ 28px の情報バー。誤ブランチでの編集指示を防ぐための「現在の Git ブランチ」と、ビューア確認用の「アクティブファイル種別」を表示する。
+
+| 機能 | 説明 | 対応コンポーネント |
+|------|------|------------------|
+| 画面下段常設 | `AppLayout` を `flex-col` 化した最下段に 28px の帯を配置 | `StatusBar`, `AppLayout` |
+| Git ブランチ表示 | 左端に `GitBranch` アイコンとブランチ名。detached HEAD は短縮 SHA。非 Git 時は非表示 | `BranchIndicator`, Rust `commands/git.rs::git_branch` |
+| ブランチ自動更新 | 3 秒間隔で `git_branch` IPC を再取得（`.git/HEAD` の atomic rename で fs watch が取りこぼすためポーリング方式） | `useGitBranch` |
+| ファイル種別表示 | 右端にビューア種別ラベル（`Markdown` / `Code` / `Image` / `Plain`）をアイコン付きで表示 | `FileTypeIndicator`, `getViewMode` |
+| モード連動 | ターミナルモード時は種別ラベルを非表示。ブランチは両モードで表示 | `FileTypeIndicator`（`appStore.activeMainTab` 購読） |
+| 分割フォーカス連動 | コンテンツ分割時は `focusedPane` 側のアクティブ filePath を種別判定に使用 | `FileTypeIndicator`（`contentStore.focusedPane` 購読） |
+
 ### 3.6 プロンプト編集パレット機能（FR-15）
 
 | 機能 | 説明 | 対応コンポーネント |
@@ -199,3 +213,4 @@
 | 2026-04-05 | 1.1 | Phase 3-C キーボードショートカット追加 | - |
 | 2026-04-14 | 1.2 | Claude Code 通知機能・OSC 0/1/2 タイトル・手動リネーム・未読マーク・自動クローズ・Shift+Enter を反映 | - |
 | 2026-04-18 | 1.3 | プロンプト編集パレット（FR-15）を機能カテゴリ §3.6・ショートカット・パス挿入ディスパッチ分岐に反映 | - |
+| 2026-04-19 | 1.4 | ステータスバー機能を機能カテゴリ・§3.7 に追加（Git ブランチ + ファイル種別表示） | - |

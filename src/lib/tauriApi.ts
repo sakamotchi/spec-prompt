@@ -176,6 +176,9 @@ export const tauriApi = {
   // Git
   getGitStatus: (cwd: string): Promise<Record<string, GitFileStatus>> =>
     invoke("git_status", { cwd }),
+
+  getBranch: (cwd: string): Promise<string | null> =>
+    invoke("git_branch", { cwd }),
 };
 
 export interface GitFileStatus {

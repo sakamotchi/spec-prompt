@@ -5,6 +5,7 @@ import { TreePanel } from '../TreePanel'
 import { PathPalette } from '../PathPalette'
 import { PromptPalette } from '../PromptPalette/PromptPalette'
 import { ShortcutsModal } from '../KeyboardShortcuts/ShortcutsModal'
+import { StatusBar } from '../StatusBar'
 import { ToastHost } from '../Toast'
 import { useAppStore } from '../../stores/appStore'
 import { useContentStore } from '../../stores/contentStore'
@@ -291,11 +292,14 @@ export function AppLayout() {
   }, [])
 
   return (
-    <div className="flex h-full w-full bg-[var(--color-bg-base)]">
-      <SplitPane direction="horizontal" defaultSize={240} minSize={160} maxSize={480}>
-        <TreePanel />
-        <MainArea />
-      </SplitPane>
+    <div className="flex h-full w-full flex-col bg-[var(--color-bg-base)]">
+      <div className="flex min-h-0 flex-1">
+        <SplitPane direction="horizontal" defaultSize={240} minSize={160} maxSize={480}>
+          <TreePanel />
+          <MainArea />
+        </SplitPane>
+      </div>
+      <StatusBar />
 
       <PathPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} />
       <PromptPalette />
