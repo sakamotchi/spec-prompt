@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest'
 import { useContentStore } from './contentStore'
 
 function resetStore() {
-  const makeTab = () => ({ id: crypto.randomUUID(), filePath: null, content: null, viewMode: 'plain' as const, isLoading: false })
+  const makeTab = () => ({ id: crypto.randomUUID(), filePath: null, content: null, viewMode: 'plain' as const, isLoading: false, scrollTop: 0 })
   const p = makeTab()
   const s = makeTab()
   useContentStore.setState({

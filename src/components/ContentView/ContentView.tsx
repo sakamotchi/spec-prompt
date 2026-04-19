@@ -50,8 +50,8 @@ export function ContentView({ tabId }: ContentViewProps) {
     )
   }
 
-  if (tab.viewMode === 'markdown') return <MarkdownPreview content={tab.content} filePath={tab.filePath ?? undefined} />
-  if (tab.viewMode === 'code') return <CodeViewer content={tab.content} filePath={tab.filePath} />
+  if (tab.viewMode === 'markdown') return <MarkdownPreview tabId={tabId} content={tab.content} filePath={tab.filePath ?? undefined} />
+  if (tab.viewMode === 'code') return <CodeViewer tabId={tabId} content={tab.content} filePath={tab.filePath} />
   if (tab.viewMode === 'image') return <ImageViewer filePath={tab.filePath} />
-  return <PlainTextViewer content={tab.content} />
+  return <PlainTextViewer tabId={tabId} content={tab.content} />
 }

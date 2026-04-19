@@ -21,6 +21,7 @@ function resetStore() {
     content: null,
     viewMode: 'plain' as const,
     isLoading: false,
+    scrollTop: 0,
   })
   const p = makeTab()
   const s = makeTab()
