@@ -2,23 +2,24 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import * as Dialog from '@radix-ui/react-dialog'
 import { BookTemplate, History } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
-import {
-  usePromptPaletteStore,
-  type PromptTemplate,
-} from '../../stores/promptPaletteStore'
+import { usePromptPaletteStore } from '../../stores/promptPaletteStore'
 import { tauriApi } from '../../lib/tauriApi'
 import { toast } from '../Toast'
 import { usePromptHistoryCursor } from '../../hooks/usePromptHistoryCursor'
 import { PromptHistoryDropdown } from './PromptHistoryDropdown'
 import { PromptTemplateDropdown } from './PromptTemplateDropdown'
 import { PromptTemplateEditor } from './PromptTemplateEditor'
-import { SlashSuggest } from './SlashSuggest'
+import { SlashSuggest, type SlashSuggestHandle } from './SlashSuggest'
 import { parseSlashQuery } from '../../lib/slashQuery'
 import {
   findNextPlaceholder,
   findPreviousPlaceholder,
 } from '../../lib/templatePlaceholders'
-import { applyTemplateBodyToDraft } from '../../lib/templateApply'
+import {
+  applyTemplateBodyToDraft,
+  insertInlineCommand,
+} from '../../lib/templateApply'
+import type { SlashSuggestItem } from '../../lib/slashSuggestItem'
 
 const IS_MAC =
   typeof navigator !== 'undefined' && /Mac|iP(hone|od|ad)/.test(navigator.platform)
@@ -35,6 +36,7 @@ export function PromptPalette() {
   const editorState = usePromptPaletteStore((s) => s.editorState)
 
   const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const slashSuggestRef = useRef<SlashSuggestHandle>(null)
 
   // IME 変換中は Enter / Cmd+Enter を送信扱いにしない。
   // e.nativeEvent.isComposing と state の OR で二重ガード（ブラウザ差異対策）。
@@ -141,21 +143,29 @@ export function PromptPalette() {
     [isComposing],
   )
 
-  // SlashSuggest からのテンプレ選択: draft を全置換してプレースホルダ選択状態化
-  const handleSlashSelect = useCallback((tpl: PromptTemplate) => {
-    applyTemplateBodyToDraft(tpl.body)
+  // SlashSuggest からの選択: kind により挙動を分岐する。
+  // - template: 全置換＋プレースホルダ選択状態化
+  // - builtin / user-skill / project-skill: draft を `/<name> ` に全置換
+  const handleSlashSelect = useCallback((item: SlashSuggestItem) => {
+    if (item.kind === 'template') {
+      applyTemplateBodyToDraft(item.body)
+    } else {
+      insertInlineCommand(item.name)
+    }
   }, [])
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-      // SlashSuggest 表示中の ↑/↓/Enter は SlashSuggest 側に委譲。
-      // テンプレドロップダウン/履歴ドロップダウン表示中は、それぞれの子コンポーネントで処理。
       const state = usePromptPaletteStore.getState()
       const slashActive =
         parseSlashQuery(state.drafts[state.targetPtyId ?? ''] ?? '') !== null
       const dropdownActive = state.dropdown !== 'none'
 
-      // Tab プレースホルダ遷移（ドロップダウン非表示時のみ）
+      // SlashSuggest 表示中は textarea の ↑/↓/Enter/Tab を SlashSuggest 側へ委譲。
+      // 修飾付き（Cmd+Enter など送信系）は SlashSuggest 側で非消費のまま返る。
+      if (slashActive && slashSuggestRef.current?.handleKeyDown(e)) return
+
+      // Tab プレースホルダ遷移（ドロップダウン・SlashSuggest 非表示時のみ）
       if (!dropdownActive && !slashActive) {
         if (handleTabPlaceholder(e)) return
       }
@@ -363,7 +373,11 @@ export function PromptPalette() {
 
             {/* 本文 */}
             <div className="p-3">
-              <SlashSuggest draft={draft} onSelect={handleSlashSelect} />
+              <SlashSuggest
+                ref={slashSuggestRef}
+                draft={draft}
+                onSelect={handleSlashSelect}
+              />
               {dropdown === 'history' && <PromptHistoryDropdown />}
               {dropdown === 'template' && <PromptTemplateDropdown />}
               <textarea

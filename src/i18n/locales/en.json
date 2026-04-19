@@ -114,6 +114,20 @@
       "ariaLabel": "Send history list",
       "openHint": "Open history"
     },
+    "slashSuggest": {
+      "section": {
+        "commands": "Claude Code",
+        "userSkills": "User Skills",
+        "projectSkills": "Project Skills",
+        "templates": "Templates"
+      },
+      "badge": {
+        "command": "CMD",
+        "userSkill": "USER",
+        "projectSkill": "PROJ",
+        "template": "TPL"
+      }
+    },
     "template": {
       "title": "Templates",
       "empty": "No templates yet",

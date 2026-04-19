@@ -57,9 +57,6 @@ describe('SlashSuggest', () => {
   beforeEach(() => {
     cleanup()
     resetStore()
-    usePromptPaletteStore.getState().upsertTemplate({ name: 'review', body: '1' })
-    usePromptPaletteStore.getState().upsertTemplate({ name: 'refactor', body: '2' })
-    usePromptPaletteStore.getState().upsertTemplate({ name: 'summarize', body: '3' })
   })
 
   it('draft が / で始まらない場合は何も描画しない', () => {
@@ -67,47 +64,71 @@ describe('SlashSuggest', () => {
     expect(container.firstChild).toBeNull()
   })
 
-  it('draft が / のとき全テンプレが表示される', () => {
+  it('draft が / のとき組み込みコマンドと（あれば）テンプレがセクション分けで表示される', () => {
+    usePromptPaletteStore.getState().upsertTemplate({ name: 'review-pr', body: 'b' })
     render(<SlashSuggest draft="/" onSelect={() => {}} />)
-    const options = screen.getAllByRole('option')
-    expect(options).toHaveLength(3)
+    // コマンドセクションの見出し
+    expect(
+      screen.getByLabelText('promptPalette.slashSuggest.section.commands'),
+    ).toBeTruthy()
+    // テンプレセクションの見出し
+    expect(
+      screen.getByLabelText('promptPalette.slashSuggest.section.templates'),
+    ).toBeTruthy()
+    // バッジ CMD / TPL
+    expect(screen.getAllByText('promptPalette.slashSuggest.badge.command').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('promptPalette.slashSuggest.badge.template').length).toBe(1)
   })
 
-  it('draft が /rev のとき fuzzy 絞り込み', () => {
-    render(<SlashSuggest draft="/rev" onSelect={() => {}} />)
-    const options = screen.getAllByRole('option')
-    const names = options.map((o) => o.textContent)
-    // `rev` の r, e, v を順番に含むのは `review` のみ（refactor は v がない、summarize は v がない）
-    expect(names).toHaveLength(1)
-    expect(names[0]).toContain('review')
-  })
-
-  it('draft が /re のとき r,e を順番に含むテンプレが候補に並ぶ', () => {
-    render(<SlashSuggest draft="/re" onSelect={() => {}} />)
-    const options = screen.getAllByRole('option')
-    const names = options.map((o) => o.textContent)
-    // `re` を r, e 順で含む: review, refactor（summarize は s→u→m→m→a→r→i→z→e で r の後の e がある）
-    // 実際: summarize は r(pos 5) の後 e(pos 8) があるので fuzzy マッチする
-    expect(names.some((n) => n?.includes('review'))).toBe(true)
-    expect(names.some((n) => n?.includes('refactor'))).toBe(true)
+  it('テンプレが 0 件ならテンプレセクションは描画されない', () => {
+    render(<SlashSuggest draft="/" onSelect={() => {}} />)
+    expect(
+      screen.queryByLabelText('promptPalette.slashSuggest.section.templates'),
+    ).toBeNull()
   })
 
   it('候補 0 件なら非表示', () => {
     const { container } = render(
-      <SlashSuggest draft="/zzzzzzz" onSelect={() => {}} />,
+      <SlashSuggest draft="/zzzzzzzzzzzzzzz" onSelect={() => {}} />,
     )
     expect(container.firstChild).toBeNull()
   })
 
-  it('↓ で activeIndex が進み、Enter で onSelect が呼ばれる', () => {
+  it('fuzzy クエリで組み込みコマンドが絞り込まれる（/res → resume）', () => {
+    render(<SlashSuggest draft="/res" onSelect={() => {}} />)
+    const options = screen.getAllByRole('option')
+    const names = options.map((o) => o.textContent ?? '')
+    expect(names.some((n) => n.includes('resume'))).toBe(true)
+  })
+
+  it('↓ キーで activeIndex が進み、Enter で onSelect がグローバル index の候補で呼ばれる', () => {
+    // builtin: maxPerSection=10 件で先頭は "batch" (name 昇順)
+    // ↓ 1 回 → index=1 = "branch"
     const onSelect = vi.fn()
     render(<SlashSuggest draft="/" onSelect={onSelect} />)
     const root = document.querySelector('[data-palette-dropdown="slash"]') as HTMLElement
     fireEvent.keyDown(root, { key: 'ArrowDown' })
     fireEvent.keyDown(root, { key: 'Enter' })
     expect(onSelect).toHaveBeenCalledTimes(1)
-    // name 昇順 sorted: refactor, review, summarize。ArrowDown 1 回で index=1 = review
-    expect(onSelect.mock.calls[0][0].name).toBe('review')
+    const selected = onSelect.mock.calls[0][0]
+    expect(selected.kind).toBe('builtin')
+  })
+
+  it('↓ キーがセクション境界を越えて template セクションへ進む', () => {
+    // builtin は 10 件（maxPerSection）、template 1 件
+    usePromptPaletteStore.getState().upsertTemplate({ name: 'review-pr', body: 'b' })
+    const onSelect = vi.fn()
+    render(<SlashSuggest draft="/" onSelect={onSelect} />)
+    const root = document.querySelector('[data-palette-dropdown="slash"]') as HTMLElement
+    // ↓ を 10 回押す（index 0→10）で template セクション先頭 = review-pr
+    for (let i = 0; i < 10; i++) {
+      fireEvent.keyDown(root, { key: 'ArrowDown' })
+    }
+    fireEvent.keyDown(root, { key: 'Enter' })
+    expect(onSelect).toHaveBeenCalledTimes(1)
+    const selected = onSelect.mock.calls[0][0]
+    expect(selected.kind).toBe('template')
+    expect(selected.name).toBe('review-pr')
   })
 
   it('draft に空白が入ると非表示（条件喪失）', () => {
@@ -122,5 +143,52 @@ describe('SlashSuggest', () => {
       <SlashSuggest draft="/rev\npr" onSelect={() => {}} />,
     )
     expect(container.firstChild).toBeNull()
+  })
+
+  it('クリックで onSelect が呼ばれる', () => {
+    const onSelect = vi.fn()
+    render(<SlashSuggest draft="/" onSelect={onSelect} />)
+    const firstOption = screen.getAllByRole('option')[0]
+    fireEvent.click(firstOption)
+    expect(onSelect).toHaveBeenCalledTimes(1)
+  })
+
+  it('Tab キーで activeIndex の候補が確定される', () => {
+    const onSelect = vi.fn()
+    render(<SlashSuggest draft="/" onSelect={onSelect} />)
+    const root = document.querySelector('[data-palette-dropdown="slash"]') as HTMLElement
+    fireEvent.keyDown(root, { key: 'Tab' })
+    expect(onSelect).toHaveBeenCalledTimes(1)
+    // 先頭 activeIndex=0 は builtin 昇順先頭 = "batch"
+    expect(onSelect.mock.calls[0][0].kind).toBe('builtin')
+    expect(onSelect.mock.calls[0][0].name).toBe('batch')
+  })
+
+  it('↓ で途中まで移動してから Tab でその候補を確定できる', () => {
+    const onSelect = vi.fn()
+    render(<SlashSuggest draft="/" onSelect={onSelect} />)
+    const root = document.querySelector('[data-palette-dropdown="slash"]') as HTMLElement
+    fireEvent.keyDown(root, { key: 'ArrowDown' })
+    fireEvent.keyDown(root, { key: 'ArrowDown' })
+    fireEvent.keyDown(root, { key: 'Tab' })
+    expect(onSelect).toHaveBeenCalledTimes(1)
+    // 2 回 ↓ → activeIndex=2 = "branch" (batch, branch, claude-api, clear, ...)
+    expect(onSelect.mock.calls[0][0].name).toBe('claude-api')
+  })
+
+  it('Shift+Tab でも activeIndex の候補が確定される', () => {
+    const onSelect = vi.fn()
+    render(<SlashSuggest draft="/" onSelect={onSelect} />)
+    const root = document.querySelector('[data-palette-dropdown="slash"]') as HTMLElement
+    fireEvent.keyDown(root, { key: 'Tab', shiftKey: true })
+    expect(onSelect).toHaveBeenCalledTimes(1)
+  })
+
+  it('Cmd+Enter は SlashSuggest で消費されない（親の送信ハンドラへ委譲）', () => {
+    const onSelect = vi.fn()
+    render(<SlashSuggest draft="/" onSelect={onSelect} />)
+    const root = document.querySelector('[data-palette-dropdown="slash"]') as HTMLElement
+    fireEvent.keyDown(root, { key: 'Enter', metaKey: true })
+    expect(onSelect).not.toHaveBeenCalled()
   })
 })

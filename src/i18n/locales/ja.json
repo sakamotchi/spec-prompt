@@ -114,6 +114,20 @@
       "ariaLabel": "送信履歴一覧",
       "openHint": "履歴を開く"
     },
+    "slashSuggest": {
+      "section": {
+        "commands": "Claude Code",
+        "userSkills": "ユーザー Skill",
+        "projectSkills": "プロジェクト Skill",
+        "templates": "テンプレート"
+      },
+      "badge": {
+        "command": "CMD",
+        "userSkill": "USER",
+        "projectSkill": "PROJ",
+        "template": "TPL"
+      }
+    },
     "template": {
       "title": "テンプレート",
       "empty": "テンプレートはまだ登録されていません",
