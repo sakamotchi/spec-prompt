@@ -8,6 +8,7 @@ import { TerminalPanel } from './TerminalPanel'
 import { TabInlineRenameInput } from './TabInlineRenameInput'
 import { TabContextMenu } from './TabContextMenu'
 import { TerminalBodyContextMenu } from './TerminalBodyContextMenu'
+import { useTabDndStore } from '../../stores/tabDndStore'
 
 const DRAG_MIME = 'application/x-specprompt-tab'
 
@@ -27,7 +28,11 @@ function TerminalPane({ pane }: TerminalPaneProps) {
   const moveTab = useTerminalStore((s) => s.moveTab)
   const setFocusedPane = useTerminalStore((s) => s.setFocusedPane)
 
-  const [isDragOver, setIsDragOver] = useState(false)
+  // Tauri の dragDropEnabled=true 環境では HTML5 dragover/drop が JS に届かないため、
+  // ハイライト表示は TabDndCoordinator が更新する共有ストアから購読する。
+  const isDragOver = useTabDndStore(
+    (s) => s.hover?.kind === 'terminal' && s.hover.pane === pane,
+  )
   // ドラッグ中はターミナルコンテンツの pointer-events を無効化して xterm に drop が届かないようにする
   const [isAnyTabDragging, setIsAnyTabDragging] = useState(false)
   // インライン編集中のタブ ID（null のときは通常表示）
@@ -60,28 +65,22 @@ function TerminalPane({ pane }: TerminalPaneProps) {
   }, [])
 
   const handleDragStart = useCallback((e: React.DragEvent, tabId: string) => {
+    // 非 Tauri 環境（または fallback）用に data も設定する
     e.dataTransfer.setData(DRAG_MIME, JSON.stringify({ tabId, pane }))
     e.dataTransfer.effectAllowed = 'move'
+    useTabDndStore.getState().startDrag({ kind: 'terminal', tabId, fromPane: pane })
   }, [pane])
 
-  // ペイン全体をドロップターゲットにする
+  // 非 Tauri 環境での fallback。Tauri では JS に届かないので実質 no-op。
   const handleDragOver = useCallback((e: React.DragEvent) => {
     if (!e.dataTransfer.types.includes(DRAG_MIME)) return
     e.preventDefault()
     e.dataTransfer.dropEffect = 'move'
-    setIsDragOver(true)
-  }, [])
-
-  const handleDragLeave = useCallback((e: React.DragEvent) => {
-    // 子要素への移動は無視（false positive を防ぐ）
-    if (e.currentTarget.contains(e.relatedTarget as Node)) return
-    setIsDragOver(false)
   }, [])
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault()
     e.stopPropagation()
-    setIsDragOver(false)
     const raw = e.dataTransfer.getData(DRAG_MIME)
     try {
       const { tabId, pane: fromPane } = JSON.parse(raw)
@@ -95,6 +94,8 @@ function TerminalPane({ pane }: TerminalPaneProps) {
 
   return (
     <div
+      data-tab-drop-kind="terminal"
+      data-tab-drop-pane={pane}
       className="flex flex-col h-full min-w-0 transition-colors"
       style={{
         outline: isDragOver ? '2px solid var(--color-accent)' : 'none',
@@ -102,7 +103,6 @@ function TerminalPane({ pane }: TerminalPaneProps) {
       }}
       onPointerDown={() => setFocusedPane(pane)}
       onDragOver={handleDragOver}
-      onDragLeave={handleDragLeave}
       onDrop={handleDrop}
     >
       {/* タブバー */}

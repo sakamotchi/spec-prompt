@@ -1,7 +1,8 @@
-import { useCallback, useState } from 'react'
+import { useCallback } from 'react'
 import { X, Columns2 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import type { ContentTab } from '../../stores/contentStore'
+import { useTabDndStore } from '../../stores/tabDndStore'
 
 const DRAG_MIME = 'application/x-specprompt-tab'
 
@@ -29,28 +30,29 @@ export function ContentTabBar({
   onToggleSplit,
 }: ContentTabBarProps) {
   const { t } = useTranslation()
-  const [isDragOver, setIsDragOver] = useState(false)
+  // Tauri 環境では HTML5 dragover/drop が JS に届かないため、実際のドロップ判定は
+  // TabDndCoordinator 側で onDragDropEvent を受けて行う。ここではハイライト表示のみ購読する。
+  const isDragOver = useTabDndStore(
+    (s) => s.hover?.kind === 'content' && s.hover.pane === pane,
+  )
 
   const handleDragStart = useCallback((e: React.DragEvent, tabId: string) => {
+    // 非 Tauri 環境（または fallback）用に data も設定する
     e.dataTransfer.setData(DRAG_MIME, JSON.stringify({ tabId, pane }))
     e.dataTransfer.effectAllowed = 'move'
+    useTabDndStore.getState().startDrag({ kind: 'content', tabId, fromPane: pane })
   }, [pane])
 
+  // HTML5 の dragover/drop は Tauri の dragDropEnabled=true では発火しないが、
+  // 非 Tauri 環境ではこれが fallback になる。
   const handleDragOver = useCallback((e: React.DragEvent) => {
     if (!e.dataTransfer.types.includes(DRAG_MIME)) return
     e.preventDefault()
     e.dataTransfer.dropEffect = 'move'
-    setIsDragOver(true)
-  }, [])
-
-  const handleDragLeave = useCallback((e: React.DragEvent) => {
-    if (e.currentTarget.contains(e.relatedTarget as Node)) return
-    setIsDragOver(false)
   }, [])
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault()
-    setIsDragOver(false)
     const raw = e.dataTransfer.getData(DRAG_MIME)
     try {
       const { tabId, pane: fromPane } = JSON.parse(raw)
@@ -64,6 +66,8 @@ export function ContentTabBar({
 
   return (
     <div
+      data-tab-drop-kind="content"
+      data-tab-drop-pane={pane}
       className="flex items-center h-8 flex-shrink-0 transition-colors"
       style={{
         background: isDragOver
@@ -72,7 +76,6 @@ export function ContentTabBar({
         borderBottom: `1px solid ${isDragOver ? 'var(--color-accent)' : isFocused ? 'var(--color-accent)' : 'var(--color-border)'}`,
       }}
       onDragOver={handleDragOver}
-      onDragLeave={handleDragLeave}
       onDrop={handleDrop}
     >
       <div className="flex items-center flex-1 overflow-x-auto min-w-0">

@@ -7,6 +7,7 @@ import { PromptPalette } from '../PromptPalette/PromptPalette'
 import { ShortcutsModal } from '../KeyboardShortcuts/ShortcutsModal'
 import { StatusBar } from '../StatusBar'
 import { ToastHost } from '../Toast'
+import { TabDndCoordinator } from './TabDndCoordinator'
 import { useAppStore } from '../../stores/appStore'
 import { useContentStore } from '../../stores/contentStore'
 import { usePromptPaletteStore } from '../../stores/promptPaletteStore'
@@ -305,6 +306,7 @@ export function AppLayout() {
       <PromptPalette />
       <ShortcutsModal open={shortcutsOpen} onOpenChange={setShortcutsOpen} />
       <ToastHost />
+      <TabDndCoordinator />
     </div>
   )
 }

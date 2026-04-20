@@ -14,6 +14,7 @@ import { RecentProjectsMenu } from './RecentProjectsMenu'
 import { SettingsModal } from '../Settings/SettingsModal'
 import { ConfirmDropDialog } from './ConfirmDropDialog'
 import { TreeDndProvider, useTreeDnd } from '../../hooks/useTreeDnd'
+import { useTabDndStore } from '../../stores/tabDndStore'
 
 export function TreePanel() {
   const projectRoot = useAppStore((s) => s.projectRoot)
@@ -170,6 +171,8 @@ export function TreePanel() {
 
     getCurrentWebview()
       .onDragDropEvent((event) => {
+        // タブ間 DnD の最中はツリー側のハイライト/ドロップ判定を行わない
+        if (useTabDndStore.getState().source) return
         const root = useAppStore.getState().projectRoot
         const payload = event.payload
         if (payload.type === 'over') {
