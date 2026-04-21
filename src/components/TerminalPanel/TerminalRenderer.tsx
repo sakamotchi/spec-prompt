@@ -5,8 +5,15 @@ import { resolveColor, DEFAULT_BG } from './colors'
 import { useTerminalInput } from './useTerminalInput'
 import { useAppStore } from '../../stores/appStore'
 
+/**
+ * 選択位置のアンカー。
+ * `line` は alacritty のグリッド絶対行（0=現在アクティブ画面の先頭、負値=スクロールバック履歴）。
+ * ビューポート行 = `line + scroll_offset` で変換する。
+ * スクロール追随と、スクロールバックに流れた内容のコピー（Cmd+C）に使う。
+ */
+interface SelAnchor { line: number; col: number }
+interface SelectionRange { start: SelAnchor; end: SelAnchor }
 interface CellPos { row: number; col: number }
-interface SelectionRange { start: CellPos; end: CellPos }
 
 interface TerminalRendererProps {
   ptyId: string | null
@@ -22,24 +29,10 @@ function pixelToCell(cssX: number, cssY: number, cw: number, ch: number, dpr: nu
   }
 }
 
-function normalizeSelection(sel: SelectionRange): [CellPos, CellPos] {
+function normalizeSelection(sel: SelectionRange): [SelAnchor, SelAnchor] {
   const { start, end } = sel
-  const startBefore = start.row < end.row || (start.row === end.row && start.col <= end.col)
+  const startBefore = start.line < end.line || (start.line === end.line && start.col <= end.col)
   return startBefore ? [start, end] : [end, start]
-}
-
-function extractSelectedText(cells: CellData[], sel: SelectionRange, cols: number): string {
-  const [from, to] = normalizeSelection(sel)
-  const lines: string[] = []
-  for (let r = from.row; r <= to.row; r++) {
-    const startCol = r === from.row ? from.col : 0
-    const endCol   = r === to.row   ? to.col   : cols
-    const rowCells = cells
-      .filter(c => c.row === r && c.col >= startCol && c.col < endCol)
-      .sort((a, b) => a.col - b.col)
-    lines.push(rowCells.map(c => c.ch).join('').trimEnd())
-  }
-  return lines.join('\n')
 }
 
 export function TerminalRenderer({ ptyId, fontFamily, fontSize, theme }: TerminalRendererProps) {
@@ -144,15 +137,22 @@ export function TerminalRenderer({ ptyId, fontFamily, fontSize, theme }: Termina
     const { row, col } = cursorRef.current
 
     // 選択ハイライト
+    // selection は alacritty グリッド絶対行で保持しているため、
+    // 現在の scroll_offset を足して viewport row に変換してから描画する。
+    // viewport 範囲外（スクロールアウト）の行はクリップ。
     const sel = selectionRef.current
     if (sel) {
       const [from, to] = normalizeSelection(sel)
+      const scrollOff = scrollOffsetRef.current
+      const rows = rowsRef.current
       ctx.fillStyle = 'rgba(124, 106, 247, 0.35)'
-      for (let r = from.row; r <= to.row; r++) {
-        const startCol = r === from.row ? from.col : 0
-        const endCol   = r === to.row   ? to.col   : colsRef.current
+      for (let line = from.line; line <= to.line; line++) {
+        const vRow = line + scrollOff
+        if (vRow < 0 || vRow >= rows) continue
+        const startCol = line === from.line ? from.col : 0
+        const endCol   = line === to.line   ? to.col   : colsRef.current
         if (endCol > startCol) {
-          ctx.fillRect(startCol * cw, r * ch, (endCol - startCol) * cw, ch)
+          ctx.fillRect(startCol * cw, vRow * ch, (endCol - startCol) * cw, ch)
         }
       }
     }
@@ -399,6 +399,8 @@ export function TerminalRenderer({ ptyId, fontFamily, fontSize, theme }: Termina
   useTerminalInput({ ptyId, enabled: true, inputRef })
 
   // ---- Cmd+C ハンドラ ----
+  // 選択がスクロールバックに流れていても正しくコピーできるよう、
+  // Rust 側グリッドから抽出する（ビューポートの lastPayload に閉じない）。
   useEffect(() => {
     const el = inputRef.current
     if (!el) return
@@ -406,12 +408,15 @@ export function TerminalRenderer({ ptyId, fontFamily, fontSize, theme }: Termina
     const onKeydown = (e: KeyboardEvent) => {
       if (!e.metaKey || e.key !== 'c') return
       const sel = selectionRef.current
-      const last = lastPayloadRef.current
-      if (sel && last) {
-        const text = extractSelectedText(last.cells, sel, colsRef.current)
-        if (text) {
-          navigator.clipboard.writeText(text).catch(console.error)
-        }
+      const id = ptyIdRef.current
+      if (sel && id) {
+        const [from, to] = normalizeSelection(sel)
+        tauriApi
+          .extractTerminalText(id, from.line, to.line, from.col, to.col)
+          .then(text => {
+            if (text) navigator.clipboard.writeText(text).catch(console.error)
+          })
+          .catch(console.error)
       }
       // 選択を解除
       selectionRef.current = null
@@ -546,6 +551,15 @@ export function TerminalRenderer({ ptyId, fontFamily, fontSize, theme }: Termina
     }
   }, [])
 
+  // ビューポート座標 → selection アンカー（グリッド絶対行）
+  // line = viewport_row - scroll_offset、つまり画面下部＝末尾時に 0..screen_lines-1、
+  // スクロールバック行は負の値になる。
+  const toAnchor = useCallback((cell: CellPos): SelAnchor => {
+    const col = Math.max(0, Math.min(colsRef.current - 1, cell.col))
+    const vRow = Math.max(0, Math.min(rowsRef.current - 1, cell.row))
+    return { line: vRow - scrollOffsetRef.current, col }
+  }, [])
+
   // ---- マウス選択ハンドラ ----
   const handleMouseDown = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
     // スクロールバードラッグ中はテキスト選択を開始しない
@@ -554,15 +568,12 @@ export function TerminalRenderer({ ptyId, fontFamily, fontSize, theme }: Termina
     const ch = cellHeightRef.current
     const dpr = window.devicePixelRatio || 1
     const cell = pixelToCell(e.nativeEvent.offsetX, e.nativeEvent.offsetY, cw, ch, dpr)
-    const clampedCell = {
-      col: Math.max(0, Math.min(colsRef.current - 1, cell.col)),
-      row: Math.max(0, Math.min(rowsRef.current - 1, cell.row)),
-    }
-    selectionRef.current = { start: clampedCell, end: clampedCell }
+    const anchor = toAnchor(cell)
+    selectionRef.current = { start: anchor, end: anchor }
     isDraggingRef.current = true
     drawCursor(cursorVisibleRef.current)
     inputRef.current?.focus()
-  }, [drawCursor])
+  }, [drawCursor, toAnchor])
 
   const handleMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
     if (!isDraggingRef.current) return
@@ -570,13 +581,9 @@ export function TerminalRenderer({ ptyId, fontFamily, fontSize, theme }: Termina
     const ch = cellHeightRef.current
     const dpr = window.devicePixelRatio || 1
     const cell = pixelToCell(e.nativeEvent.offsetX, e.nativeEvent.offsetY, cw, ch, dpr)
-    const clampedCell = {
-      col: Math.max(0, Math.min(colsRef.current - 1, cell.col)),
-      row: Math.max(0, Math.min(rowsRef.current - 1, cell.row)),
-    }
-    selectionRef.current = { ...selectionRef.current!, end: clampedCell }
+    selectionRef.current = { ...selectionRef.current!, end: toAnchor(cell) }
     drawCursor(cursorVisibleRef.current)
-  }, [drawCursor])
+  }, [drawCursor, toAnchor])
 
   const handleMouseUp = useCallback(() => {
     isDraggingRef.current = false

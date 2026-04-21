@@ -1,4 +1,5 @@
 use alacritty_terminal::grid::{Dimensions, Scroll};
+use alacritty_terminal::index::{Column, Line, Point};
 use alacritty_terminal::term::cell::Flags;
 use alacritty_terminal::term::{Config, Term};
 use alacritty_terminal::vte::ansi;
@@ -122,6 +123,52 @@ impl TerminalInstance {
             lines: lines as usize,
         };
         self.term.resize(size);
+    }
+
+    /// alacritty のグリッド絶対行範囲 `line_from..=line_to` からテキストを切り出す。
+    /// 負の行はスクロールバック履歴、0..screen_lines-1 は現在のアクティブ画面を指す。
+    /// 選択範囲が現在のビューポート外にスクロールアウトしていても参照できるよう、
+    /// Grid を直接インデックスする。
+    pub fn extract_text(&self, line_from: i32, line_to: i32, col_from: u16, col_to: u16) -> String {
+        let cols = self.term.columns();
+        if cols == 0 {
+            return String::new();
+        }
+        let history_size = self.term.history_size() as i32;
+        let screen_lines = self.term.screen_lines() as i32;
+
+        // 範囲を Grid の有効範囲 [-history_size, screen_lines-1] にクリップ
+        let min_line = -history_size;
+        let max_line = screen_lines - 1;
+        let from = line_from.max(min_line).min(max_line);
+        let to = line_to.max(min_line).min(max_line);
+        if from > to {
+            return String::new();
+        }
+
+        let grid = self.term.grid();
+        let mut out = String::new();
+        for l in from..=to {
+            let start_col = if l == from { col_from as usize } else { 0 };
+            let end_col = if l == to { col_to as usize } else { cols };
+            let end_col = end_col.min(cols);
+            let start_col = start_col.min(end_col);
+
+            let mut row_text = String::new();
+            for c in start_col..end_col {
+                let cell = &grid[Point::new(Line(l), Column(c))];
+                // WIDE_CHAR_SPACER は wide 文字の 2 セル目で同じ文字が重複するためスキップ
+                if cell.flags.contains(Flags::WIDE_CHAR_SPACER) {
+                    continue;
+                }
+                row_text.push(cell.c);
+            }
+            out.push_str(row_text.trim_end());
+            if l < to {
+                out.push('\n');
+            }
+        }
+        out
     }
 }
 
@@ -264,5 +311,109 @@ mod tests {
             assert!(cell.col < 40, "col {} should be < 40", cell.col);
             assert!(cell.row < 10, "row {} should be < 10", cell.row);
         }
+    }
+
+    // ---- extract_text のテスト ----
+
+    #[test]
+    fn test_extract_text_single_line_full() {
+        let mut ti = TerminalInstance::new_for_test(80, 24);
+        ti.advance(b"hello");
+        // 1 行目を 0..5 列で抽出
+        let text = ti.extract_text(0, 0, 0, 5);
+        assert_eq!(text, "hello");
+    }
+
+    #[test]
+    fn test_extract_text_single_line_partial_cols() {
+        let mut ti = TerminalInstance::new_for_test(80, 24);
+        ti.advance(b"abcdef");
+        // col 2..5 を抽出（"cde"）
+        let text = ti.extract_text(0, 0, 2, 5);
+        assert_eq!(text, "cde");
+    }
+
+    #[test]
+    fn test_extract_text_trims_trailing_spaces_per_line() {
+        let mut ti = TerminalInstance::new_for_test(80, 24);
+        ti.advance(b"hi");
+        // 1 行目を 0..80 列で抽出しても末尾空白は trim される
+        let text = ti.extract_text(0, 0, 0, 80);
+        assert_eq!(text, "hi");
+    }
+
+    #[test]
+    fn test_extract_text_multi_line() {
+        let mut ti = TerminalInstance::new_for_test(80, 24);
+        ti.advance(b"aaa\r\nbbb\r\nccc");
+        // 3 行（行 0..2）を抽出
+        let text = ti.extract_text(0, 2, 0, 80);
+        assert_eq!(text, "aaa\nbbb\nccc");
+    }
+
+    #[test]
+    fn test_extract_text_multi_line_col_clipping() {
+        let mut ti = TerminalInstance::new_for_test(80, 24);
+        ti.advance(b"ABCDE\r\nFGHIJ\r\nKLMNO");
+        // 行 0: col 2..（"CDE"）, 行 1: 全 col（"FGHIJ"）, 行 2: ..3 col（"KLM"）
+        let text = ti.extract_text(0, 2, 2, 3);
+        assert_eq!(text, "CDE\nFGHIJ\nKLM");
+    }
+
+    #[test]
+    fn test_extract_text_from_scrollback() {
+        let mut ti = TerminalInstance::new_for_test(80, 24);
+        // 画面行数を超えて出力し、スクロールバックに流す
+        for i in 0..30 {
+            let line = format!("line{:02}\r\n", i);
+            ti.advance(line.as_bytes());
+        }
+        // 最初の方の行（line00〜line05 付近）はすでにスクロールバックに流れているはずで、
+        // ビューポート(Line(0..23)) からは取れないが、負の Line を辿れば取り出せる。
+        // alacritty の内部で Line(0) が active screen のどこを指すかは実装依存なので、
+        // ここでは「十分広い範囲を走査すれば line00 が含まれる」ことだけ確認する。
+        let all = ti.extract_text(-50, 23, 0, 80);
+        assert!(all.contains("line00"), "earliest scrollback line should be reachable");
+        assert!(all.contains("line29"), "last written line should be reachable");
+    }
+
+    #[test]
+    fn test_extract_text_clips_out_of_range() {
+        let mut ti = TerminalInstance::new_for_test(80, 24);
+        ti.advance(b"only");
+        // 履歴も無く line_from が有効範囲外でもパニックせず、有効範囲にクリップされる
+        let text = ti.extract_text(-100, 100, 0, 80);
+        // 少なくとも "only" を含むこと
+        assert!(text.contains("only"));
+    }
+
+    #[test]
+    fn test_extract_text_empty_when_from_exceeds_to() {
+        let ti = TerminalInstance::new_for_test(80, 24);
+        // line_from > line_to（クリップ後も）のケース
+        let text = ti.extract_text(10, 5, 0, 80);
+        assert_eq!(text, "");
+    }
+
+    #[test]
+    fn test_extract_text_follows_scroll_semantics() {
+        // 選択をスクロールバック絶対行で保存した状態で、表示行数を超えて出力されても
+        // 同じ行内容が取り出せることを確認する（UI 側の「スクロール追随」の根拠）。
+        let mut ti = TerminalInstance::new_for_test(80, 24);
+        ti.advance(b"MARKER\r\n");
+        // ビューポート上では Line(0) に "MARKER" がある
+        assert_eq!(ti.extract_text(0, 0, 0, 80), "MARKER");
+
+        // この後大量に出力すると MARKER はスクロールバックに押し出される
+        for _ in 0..40 {
+            ti.advance(b"x\r\n");
+        }
+        // MARKER はもはや Line(0) にはない（現在のビューポート上には "x" しかない）
+        assert_ne!(ti.extract_text(0, 0, 0, 80), "MARKER");
+
+        // しかし絶対行的には Line(-41) 付近に退避している。
+        // 全履歴を走査して含まれていることを確認する。
+        let all = ti.extract_text(-100, 23, 0, 80);
+        assert!(all.contains("MARKER"), "MARKER should still be reachable via scrollback");
     }
 }

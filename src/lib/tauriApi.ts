@@ -93,6 +93,19 @@ export const tauriApi = {
   scrollTerminal: (id: string, delta: number): Promise<void> =>
     invoke("scroll_terminal", { id, delta }),
 
+  /**
+   * 選択範囲のテキストを Rust 側グリッドから抽出する。
+   * lineFrom/lineTo は alacritty のグリッド絶対行（負値はスクロールバック履歴）。
+   */
+  extractTerminalText: (
+    id: string,
+    lineFrom: number,
+    lineTo: number,
+    colFrom: number,
+    colTo: number,
+  ): Promise<string> =>
+    invoke("extract_terminal_text", { id, lineFrom, lineTo, colFrom, colTo }),
+
   onTerminalCells: (callback: (payload: TerminalCellsPayload) => void): Promise<UnlistenFn> =>
     listen<TerminalCellsPayload>("terminal-cells", (event) => callback(event.payload)),
 
