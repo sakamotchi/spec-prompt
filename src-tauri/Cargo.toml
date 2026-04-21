@@ -1,6 +1,6 @@
 [package]
 name = "spec-prompt"
-version = "0.2.8"
+version = "0.2.9"
 description = "SpecPrompt - 仕様駆動開発ツール"
 authors = []
 edition = "2021"
