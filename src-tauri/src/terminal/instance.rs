@@ -89,10 +89,24 @@ impl TerminalInstance {
         let display_offset = display_offset_usize as i32;
         let content = self.term.renderable_content();
 
-        // cursor はスクロール中もビューポート内の実際の位置を保持する
-        let cursor = CursorPos {
-            row: (content.cursor.point.line.0 + display_offset).max(0) as u16,
-            col: content.cursor.point.column.0 as u16,
+        // cursor.point.line はアクティブ画面（0..screen_lines-1）の行で、display_offset とは独立。
+        // scroll_display で上スクロールするとカーソルはビューポート外へ押し出される。
+        // 表示行に変換した結果が viewport 範囲外になるときは、フロントが
+        // 「カーソル非表示」と解釈できるよう u16::MAX で表現する（row=0 にクランプすると
+        // updateInputPosition で textarea が原点に置かれ、focus 時の scrollIntoView で
+        // 正しい挙動にならないため）。
+        let screen_lines = self.term.screen_lines() as i32;
+        let cursor_view_row = content.cursor.point.line.0 + display_offset;
+        let cursor = if cursor_view_row >= 0 && cursor_view_row < screen_lines {
+            CursorPos {
+                row: cursor_view_row as u16,
+                col: content.cursor.point.column.0 as u16,
+            }
+        } else {
+            CursorPos {
+                row: u16::MAX,
+                col: content.cursor.point.column.0 as u16,
+            }
         };
 
         let cells: Vec<CellData> = content
@@ -212,6 +226,21 @@ mod tests {
         // カーソルは 'H'(col=0), 'i'(col=1) の次 → col=2
         assert_eq!(cursor.row, 0);
         assert_eq!(cursor.col, 2);
+    }
+
+    #[test]
+    fn test_cursor_is_out_of_view_when_scrolled_up() {
+        // 上スクロール中はカーソルが viewport 外に押し出されるため、
+        // row は u16::MAX（viewport 非表示サイン）を返すこと。
+        let mut ti = TerminalInstance::new_for_test(80, 24);
+        for _ in 0..50 {
+            ti.advance(b"line\r\n");
+        }
+        let _ = ti.collect_damage();
+        ti.scroll(10); // 上に 10 行スクロール
+        let (_cells, cursor, scroll_offset, _sl) = ti.collect_damage().unwrap();
+        assert_eq!(scroll_offset, 10);
+        assert_eq!(cursor.row, u16::MAX, "cursor should be marked out-of-view while scrolled");
     }
 
     #[test]

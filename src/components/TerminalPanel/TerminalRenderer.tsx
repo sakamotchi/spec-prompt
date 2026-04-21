@@ -87,6 +87,10 @@ export function TerminalRenderer({ ptyId, fontFamily, fontSize, theme }: Termina
   const rafIdRef = useRef<number | null>(null)
 
   // textarea をカーソル位置に移動する（IME ウィンドウの表示位置を制御）
+  // カーソルがビューポート外（スクロール中は row >= rows になる）の場合は
+  // textarea を左上の 1x1 に退避させる。ここで cursor 位置をそのまま使うと、
+  // focus() の自動 scrollIntoView でコンテナが巨大に scrollTop され、
+  // 結果として canvas が viewport 外に押し出されて「描画が消える」症状になる。
   const updateInputPosition = useCallback(() => {
     const el = inputRef.current
     if (!el) return
@@ -95,6 +99,16 @@ export function TerminalRenderer({ ptyId, fontFamily, fontSize, theme }: Termina
     if (cw === 0 || ch === 0) return
     const dpr = window.devicePixelRatio || 1
     const { row, col } = cursorRef.current
+    const rows = rowsRef.current
+    const cols = colsRef.current
+    const inViewport = row >= 0 && row < rows && col >= 0 && col < cols
+    if (!inViewport) {
+      el.style.left = '0px'
+      el.style.top = '0px'
+      el.style.width = '1px'
+      el.style.height = '1px'
+      return
+    }
     el.style.left = `${(col * cw) / dpr}px`
     el.style.top = `${(row * ch) / dpr}px`
     el.style.width = `${cw / dpr}px`
@@ -572,7 +586,7 @@ export function TerminalRenderer({ ptyId, fontFamily, fontSize, theme }: Termina
     selectionRef.current = { start: anchor, end: anchor }
     isDraggingRef.current = true
     drawCursor(cursorVisibleRef.current)
-    inputRef.current?.focus()
+    inputRef.current?.focus({ preventScroll: true })
   }, [drawCursor, toAnchor])
 
   const handleMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
@@ -590,17 +604,17 @@ export function TerminalRenderer({ ptyId, fontFamily, fontSize, theme }: Termina
   }, [])
 
   // コンテナクリック時に hidden textarea をフォーカスして IME を有効にする
-  const focusInput = useCallback(() => { inputRef.current?.focus() }, [])
+  const focusInput = useCallback(() => { inputRef.current?.focus({ preventScroll: true }) }, [])
 
   // 初回マウント時もフォーカス
   useEffect(() => {
-    inputRef.current?.focus()
+    inputRef.current?.focus({ preventScroll: true })
     updateInputPosition()
   }, [updateInputPosition])
 
   // パス挿入など外部操作でフォーカスが外れたとき textarea を再フォーカスする
   useEffect(() => {
-    const handler = () => { inputRef.current?.focus() }
+    const handler = () => { inputRef.current?.focus({ preventScroll: true }) }
     window.addEventListener('terminal:focus', handler)
     return () => window.removeEventListener('terminal:focus', handler)
   }, [])
