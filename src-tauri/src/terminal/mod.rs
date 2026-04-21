@@ -82,4 +82,18 @@ impl TerminalManager {
             instance.resize(cols, rows);
         }
     }
+
+    /// グリッド絶対行範囲からテキストを抽出する。インスタンスが存在しなければ None。
+    pub fn extract_text(
+        &self,
+        id: &str,
+        line_from: i32,
+        line_to: i32,
+        col_from: u16,
+        col_to: u16,
+    ) -> Option<String> {
+        let instances = self.instances.lock().unwrap();
+        let instance = instances.get(id)?;
+        Some(instance.extract_text(line_from, line_to, col_from, col_to))
+    }
 }

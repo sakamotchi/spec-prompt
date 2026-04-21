@@ -277,6 +277,23 @@ pub fn scroll_terminal(
     Ok(())
 }
 
+/// 選択範囲のテキストを抽出する。
+/// `line_from`/`line_to` は alacritty のグリッド絶対行（負値はスクロールバック履歴）。
+/// 選択がビューポート外にスクロールアウトしていても参照できる。
+#[tauri::command]
+pub fn extract_terminal_text(
+    id: String,
+    line_from: i32,
+    line_to: i32,
+    col_from: u16,
+    col_to: u16,
+    terminal_manager: State<TerminalManager>,
+) -> Result<String, String> {
+    terminal_manager
+        .extract_text(&id, line_from, line_to, col_from, col_to)
+        .ok_or_else(|| format!("terminal {} not found", id))
+}
+
 /// `~` をホームディレクトリに展開する。絶対パスはそのまま返す。
 fn resolve_cwd(cwd: &str) -> String {
     if cwd.starts_with('~') {

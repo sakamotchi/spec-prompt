@@ -11,7 +11,10 @@ use commands::filesystem::{
 use commands::notification::{
     send_notification, set_pty_display_title, start_hook_server, DisplayTitleCache,
 };
-use commands::pty::{close_pty, resize_pty, resize_terminal, scroll_terminal, spawn_pty, write_pty, PtyManager};
+use commands::pty::{
+    close_pty, extract_terminal_text, resize_pty, resize_terminal, scroll_terminal, spawn_pty,
+    write_pty, PtyManager,
+};
 use commands::skills::list_claude_skills;
 use tauri::menu::{MenuBuilder, MenuItem, SubmenuBuilder, WINDOW_SUBMENU_ID};
 use tauri::Emitter;
@@ -107,6 +110,7 @@ pub fn run() {
             resize_pty,
             resize_terminal,
             scroll_terminal,
+            extract_terminal_text,
             close_pty,
             read_dir,
             read_file,
