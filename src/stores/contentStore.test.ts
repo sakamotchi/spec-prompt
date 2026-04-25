@@ -99,6 +99,83 @@ describe('contentStore — closeTab', () => {
   })
 })
 
+describe('contentStore — bulk close', () => {
+  beforeEach(resetStore)
+
+  it('closeAllTabs: ペイン内タブを空タブ1枚にリセットする', () => {
+    useContentStore.getState().openFile('/a.md')
+    useContentStore.getState().openFile('/b.md')
+    useContentStore.getState().openFile('/c.md')
+    useContentStore.getState().closeAllTabs('primary')
+    const { tabs } = useContentStore.getState().primary
+    expect(tabs).toHaveLength(1)
+    expect(tabs[0].filePath).toBeNull()
+  })
+
+  it('closeAllTabs: もう片方のペインのタブには影響しない', () => {
+    useContentStore.getState().openFile('/a.md', 'primary')
+    useContentStore.getState().openFile('/x.md', 'secondary')
+    useContentStore.getState().openFile('/y.md', 'secondary')
+    useContentStore.getState().closeAllTabs('primary')
+    expect(useContentStore.getState().secondary.tabs).toHaveLength(2)
+  })
+
+  it('closeOtherTabs: 基準タブのみを残しアクティブにする', () => {
+    useContentStore.getState().openFile('/a.md')
+    useContentStore.getState().openFile('/b.md')
+    useContentStore.getState().openFile('/c.md')
+    const target = useContentStore.getState().primary.tabs[1] // /b.md
+    useContentStore.getState().closeOtherTabs(target.id, 'primary')
+    const { tabs, activeTabId } = useContentStore.getState().primary
+    expect(tabs).toHaveLength(1)
+    expect(tabs[0].filePath).toBe('/b.md')
+    expect(activeTabId).toBe(target.id)
+  })
+
+  it('closeOtherTabs: タブが1枚のときは no-op', () => {
+    useContentStore.getState().openFile('/a.md')
+    const target = useContentStore.getState().primary.tabs[0]
+    const before = useContentStore.getState().primary
+    useContentStore.getState().closeOtherTabs(target.id, 'primary')
+    expect(useContentStore.getState().primary).toBe(before)
+  })
+
+  it('closeTabsToRight: 基準より右のタブを削除する', () => {
+    useContentStore.getState().openFile('/a.md')
+    useContentStore.getState().openFile('/b.md')
+    useContentStore.getState().openFile('/c.md')
+    useContentStore.getState().openFile('/d.md')
+    const target = useContentStore.getState().primary.tabs[1] // /b.md
+    useContentStore.getState().closeTabsToRight(target.id, 'primary')
+    const { tabs, activeTabId } = useContentStore.getState().primary
+    expect(tabs.map((t) => t.filePath)).toEqual(['/a.md', '/b.md'])
+    // /d.md がアクティブだったため、基準タブ /b.md にフォールバック
+    expect(activeTabId).toBe(target.id)
+  })
+
+  it('closeTabsToRight: 基準タブ左側のアクティブはそのまま維持', () => {
+    useContentStore.getState().openFile('/a.md')
+    useContentStore.getState().openFile('/b.md')
+    useContentStore.getState().openFile('/c.md')
+    const tabs = useContentStore.getState().primary.tabs
+    const leftTab = tabs[0] // /a.md
+    useContentStore.getState().setActiveTab(leftTab.id, 'primary')
+    const baseTab = tabs[1] // /b.md
+    useContentStore.getState().closeTabsToRight(baseTab.id, 'primary')
+    expect(useContentStore.getState().primary.activeTabId).toBe(leftTab.id)
+  })
+
+  it('closeTabsToRight: 基準が最右端なら no-op', () => {
+    useContentStore.getState().openFile('/a.md')
+    useContentStore.getState().openFile('/b.md')
+    const tabs = useContentStore.getState().primary.tabs
+    const target = tabs[tabs.length - 1]
+    const before = useContentStore.getState().primary
+    useContentStore.getState().closeTabsToRight(target.id, 'primary')
+    expect(useContentStore.getState().primary).toBe(before)
+  })
+})
+
 describe('contentStore — 分割', () => {
   beforeEach(resetStore)
 

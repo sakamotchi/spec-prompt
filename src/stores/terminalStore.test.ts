@@ -66,6 +66,67 @@ describe('terminalStore — プライマリペイン', () => {
   })
 })
 
+describe('terminalStore — bulk close', () => {
+  beforeEach(resetStore)
+
+  it('closeAllTabs: ペイン内タブを空タブ1枚に置き換える', () => {
+    useTerminalStore.getState().addTab('primary')
+    useTerminalStore.getState().addTab('primary')
+    useTerminalStore.getState().closeAllTabs('primary')
+    const { tabs } = useTerminalStore.getState().primary
+    expect(tabs).toHaveLength(1)
+    expect(tabs[0].ptyId).toBeNull()
+  })
+
+  it('closeAllTabs: もう片方のペインのタブには影響しない', () => {
+    useTerminalStore.getState().addTab('secondary')
+    useTerminalStore.getState().addTab('secondary')
+    useTerminalStore.getState().closeAllTabs('primary')
+    expect(useTerminalStore.getState().secondary.tabs).toHaveLength(3)
+  })
+
+  it('closeOtherTabs: 基準タブのみを残しアクティブにする', () => {
+    useTerminalStore.getState().addTab('primary')
+    useTerminalStore.getState().addTab('primary')
+    const target = useTerminalStore.getState().primary.tabs[1]
+    useTerminalStore.getState().closeOtherTabs(target.id, 'primary')
+    const { tabs, activeTabId } = useTerminalStore.getState().primary
+    expect(tabs).toHaveLength(1)
+    expect(tabs[0].id).toBe(target.id)
+    expect(activeTabId).toBe(target.id)
+  })
+
+  it('closeOtherTabs: タブが1枚のときは no-op', () => {
+    const target = useTerminalStore.getState().primary.tabs[0]
+    const before = useTerminalStore.getState().primary
+    useTerminalStore.getState().closeOtherTabs(target.id, 'primary')
+    expect(useTerminalStore.getState().primary).toBe(before)
+  })
+
+  it('closeTabsToRight: 基準より右のタブを削除する', () => {
+    useTerminalStore.getState().addTab('primary')
+    useTerminalStore.getState().addTab('primary')
+    useTerminalStore.getState().addTab('primary')
+    const tabs0 = useTerminalStore.getState().primary.tabs
+    const target = tabs0[1]
+    useTerminalStore.getState().closeTabsToRight(target.id, 'primary')
+    const { tabs, activeTabId } = useTerminalStore.getState().primary
+    expect(tabs).toHaveLength(2)
+    expect(tabs.map((t) => t.id)).toEqual([tabs0[0].id, target.id])
+    // 追加直後はアクティブが末尾 tab3 → 基準 target にフォールバック
+    expect(activeTabId).toBe(target.id)
+  })
+
+  it('closeTabsToRight: 基準が最右端なら no-op', () => {
+    useTerminalStore.getState().addTab('primary')
+    const tabs = useTerminalStore.getState().primary.tabs
+    const target = tabs[tabs.length - 1]
+    const before = useTerminalStore.getState().primary
+    useTerminalStore.getState().closeTabsToRight(target.id, 'primary')
+    expect(useTerminalStore.getState().primary).toBe(before)
+  })
+})
+
 describe('terminalStore — セカンダリペイン', () => {
   beforeEach(resetStore)
 
@@ -509,6 +570,62 @@ describe('プロンプト編集パレットとの連携（F3-1）', () => {
     const drafts = usePromptPaletteStore.getState().drafts
     expect(drafts['pty-a']).toBeUndefined()
     expect(drafts['pty-b']).toBe('B draft')
+  })
+
+  it('closeAllTabs() で閉じる各 ptyId の下書きがすべて破棄される', () => {
+    seedTwoTabsWithPty()
+    const palette = usePromptPaletteStore.getState()
+    palette.setDraft('pty-a', 'A draft')
+    palette.setDraft('pty-b', 'B draft')
+
+    useTerminalStore.getState().closeAllTabs('primary')
+
+    const drafts = usePromptPaletteStore.getState().drafts
+    expect(drafts['pty-a']).toBeUndefined()
+    expect(drafts['pty-b']).toBeUndefined()
+  })
+
+  it('closeAllTabs() が targetPtyId のタブを閉じたらパレットが自動クローズされる', () => {
+    seedTwoTabsWithPty()
+    usePromptPaletteStore.getState().open('pty-a', 'Terminal 1')
+
+    useTerminalStore.getState().closeAllTabs('primary')
+
+    expect(usePromptPaletteStore.getState().isOpen).toBe(false)
+  })
+
+  it('closeOtherTabs() で閉じる他タブの下書きのみ破棄される', () => {
+    const { tabAId } = seedTwoTabsWithPty()
+    const palette = usePromptPaletteStore.getState()
+    palette.setDraft('pty-a', 'A draft')
+    palette.setDraft('pty-b', 'B draft')
+
+    useTerminalStore.getState().closeOtherTabs(tabAId, 'primary')
+
+    const drafts = usePromptPaletteStore.getState().drafts
+    expect(drafts['pty-a']).toBe('A draft')
+    expect(drafts['pty-b']).toBeUndefined()
+  })
+
+  it('closeTabsToRight() で右側タブの下書きのみ破棄される', () => {
+    const tabA: TerminalTab = { ...makeTab('Terminal 1'), ptyId: 'pty-a' }
+    const tabB: TerminalTab = { ...makeTab('Terminal 2'), ptyId: 'pty-b' }
+    const tabC: TerminalTab = { ...makeTab('Terminal 3'), ptyId: 'pty-c' }
+    useTerminalStore.setState((s) => ({
+      primary: { tabs: [tabA, tabB, tabC], activeTabId: tabA.id },
+      secondary: s.secondary,
+    }))
+    const palette = usePromptPaletteStore.getState()
+    palette.setDraft('pty-a', 'A')
+    palette.setDraft('pty-b', 'B')
+    palette.setDraft('pty-c', 'C')
+
+    useTerminalStore.getState().closeTabsToRight(tabA.id, 'primary')
+
+    const drafts = usePromptPaletteStore.getState().drafts
+    expect(drafts['pty-a']).toBe('A')
+    expect(drafts['pty-b']).toBeUndefined()
+    expect(drafts['pty-c']).toBeUndefined()
   })
 
   it('closeTab() で最後の 1 枚は閉じないため、下書き破棄も発生しない', () => {

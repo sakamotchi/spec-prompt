@@ -29,6 +29,9 @@ interface TerminalState {
 
   addTab: (pane: 'primary' | 'secondary') => void
   closeTab: (id: string, pane: 'primary' | 'secondary') => void
+  closeAllTabs: (pane: 'primary' | 'secondary') => void
+  closeOtherTabs: (id: string, pane: 'primary' | 'secondary') => void
+  closeTabsToRight: (id: string, pane: 'primary' | 'secondary') => void
   /** PTY プロセス終了（exit など）時にタブを自動で閉じる／最後の 1 枚なら作り直す */
   handlePtyExited: (ptyId: string) => void
   setActiveTab: (id: string, pane: 'primary' | 'secondary') => void
@@ -124,6 +127,42 @@ export const useTerminalStore = create<TerminalState>((set) => ({
         [pane]: {
           tabs: newTabs,
           activeTabId: group.activeTabId === id ? fallback : group.activeTabId,
+        },
+      }
+    }),
+
+  closeAllTabs: (pane) =>
+    set((state) => {
+      const group = state[pane]
+      group.tabs.forEach((t) => notifyPromptPaletteOfPtyClosed(t.ptyId))
+      const fresh = makeTab(1)
+      return { [pane]: { tabs: [fresh], activeTabId: fresh.id } }
+    }),
+
+  closeOtherTabs: (id, pane) =>
+    set((state) => {
+      const group = state[pane]
+      const target = group.tabs.find((t) => t.id === id)
+      if (!target || group.tabs.length <= 1) return state
+      group.tabs.forEach((t) => {
+        if (t.id !== id) notifyPromptPaletteOfPtyClosed(t.ptyId)
+      })
+      return { [pane]: { tabs: [target], activeTabId: target.id } }
+    }),
+
+  closeTabsToRight: (id, pane) =>
+    set((state) => {
+      const group = state[pane]
+      const idx = group.tabs.findIndex((t) => t.id === id)
+      if (idx < 0 || idx === group.tabs.length - 1) return state
+      const closing = group.tabs.slice(idx + 1)
+      closing.forEach((t) => notifyPromptPaletteOfPtyClosed(t.ptyId))
+      const newTabs = group.tabs.slice(0, idx + 1)
+      const stillActive = newTabs.some((t) => t.id === group.activeTabId)
+      return {
+        [pane]: {
+          tabs: newTabs,
+          activeTabId: stillActive ? group.activeTabId : id,
         },
       }
     }),

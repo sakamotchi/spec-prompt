@@ -1,32 +1,17 @@
 import * as RadixContextMenu from '@radix-ui/react-context-menu'
-import {
-  Pencil,
-  RotateCcw,
-  X,
-  MessageSquarePlus,
-  ArrowRightFromLine,
-  Columns,
-  CircleX,
-} from 'lucide-react'
+import { X, ArrowRightFromLine, Columns, CircleX } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
 interface Props {
   children: React.ReactNode
-  pinned: boolean
   canClose: boolean
   canCloseToRight: boolean
   canCloseOthers: boolean
-  onRename: () => void
-  onUnpin: () => void
   onClose: () => void
   onCloseToRight: () => void
   onCloseOthers: () => void
   onCloseAll: () => void
-  onOpenPromptPalette: () => void
 }
-
-const IS_MAC =
-  typeof navigator !== 'undefined' && /Mac|iP(hone|od|ad)/.test(navigator.platform)
 
 const menuItemClass =
   'flex items-center gap-2 px-3 h-7 cursor-pointer outline-none select-none text-xs'
@@ -35,14 +20,12 @@ function MenuItem({
   onSelect,
   icon,
   label,
-  shortcut,
   disabled,
   danger,
 }: {
   onSelect: () => void
   icon: React.ReactNode
   label: string
-  shortcut?: string
   disabled?: boolean
   danger?: boolean
 }) {
@@ -73,14 +56,6 @@ function MenuItem({
     >
       {icon}
       <span className="flex-1">{label}</span>
-      {shortcut && (
-        <span
-          className="ml-4 font-mono"
-          style={{ color: 'var(--color-text-muted)', fontSize: '0.7rem' }}
-        >
-          {shortcut}
-        </span>
-      )}
     </RadixContextMenu.Item>
   )
 }
@@ -94,22 +69,17 @@ function Separator() {
   )
 }
 
-export function TabContextMenu({
+export function ContentTabContextMenu({
   children,
-  pinned,
   canClose,
   canCloseToRight,
   canCloseOthers,
-  onRename,
-  onUnpin,
   onClose,
   onCloseToRight,
   onCloseOthers,
   onCloseAll,
-  onOpenPromptPalette,
 }: Props) {
   const { t } = useTranslation()
-  const promptShortcut = IS_MAC ? '⌘⇧P' : 'Ctrl+⇧+P'
 
   return (
     <RadixContextMenu.Root>
@@ -124,44 +94,21 @@ export function TabContextMenu({
           }}
         >
           <MenuItem
-            onSelect={onOpenPromptPalette}
-            icon={<MessageSquarePlus size={12} />}
-            label={t('promptPalette.menu.openPalette')}
-            shortcut={promptShortcut}
-          />
-
-          <Separator />
-
-          <MenuItem
-            onSelect={onRename}
-            icon={<Pencil size={12} />}
-            label={t('terminal.tabMenu.rename')}
-          />
-          <MenuItem
-            onSelect={onUnpin}
-            icon={<RotateCcw size={12} />}
-            label={t('terminal.tabMenu.unpinTitle')}
-            disabled={!pinned}
-          />
-
-          <Separator />
-
-          <MenuItem
             onSelect={onCloseToRight}
             icon={<ArrowRightFromLine size={12} />}
-            label={t('terminal.tabMenu.closeToRight')}
+            label={t('content.tabMenu.closeToRight')}
             disabled={!canCloseToRight}
           />
           <MenuItem
             onSelect={onCloseOthers}
             icon={<Columns size={12} />}
-            label={t('terminal.tabMenu.closeOthers')}
+            label={t('content.tabMenu.closeOthers')}
             disabled={!canCloseOthers}
           />
           <MenuItem
             onSelect={onCloseAll}
             icon={<CircleX size={12} />}
-            label={t('terminal.tabMenu.closeAll')}
+            label={t('content.tabMenu.closeAll')}
           />
 
           <Separator />
@@ -169,7 +116,7 @@ export function TabContextMenu({
           <MenuItem
             onSelect={onClose}
             icon={<X size={12} />}
-            label={t('terminal.tabMenu.close')}
+            label={t('content.tabMenu.close')}
             disabled={!canClose}
             danger
           />

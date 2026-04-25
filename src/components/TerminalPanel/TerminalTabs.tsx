@@ -22,6 +22,9 @@ function TerminalPane({ pane }: TerminalPaneProps) {
   const projectRoot = useAppStore((s) => s.projectRoot)
   const addTab = useTerminalStore((s) => s.addTab)
   const closeTab = useTerminalStore((s) => s.closeTab)
+  const closeAllTabs = useTerminalStore((s) => s.closeAllTabs)
+  const closeOtherTabs = useTerminalStore((s) => s.closeOtherTabs)
+  const closeTabsToRight = useTerminalStore((s) => s.closeTabsToRight)
   const setActiveTab = useTerminalStore((s) => s.setActiveTab)
   const toggleSplit = useTerminalStore((s) => s.toggleSplit)
   const splitEnabled = useTerminalStore((s) => s.splitEnabled)
@@ -114,11 +117,13 @@ function TerminalPane({ pane }: TerminalPaneProps) {
         }}
       >
         <div className="flex items-center flex-1 overflow-x-auto min-w-0">
-          {group.tabs.map((tab) => {
+          {group.tabs.map((tab, index) => {
             const isActive = tab.id === group.activeTabId
             const isEditing = tab.id === editingTabId
             const display = computeDisplayTitle(tab)
             const canClose = group.tabs.length > 1
+            const canCloseOthers = group.tabs.length > 1
+            const canCloseToRight = index < group.tabs.length - 1
             const unread = tab.hasUnreadNotification
             const handleTabClick = () => {
               setActiveTab(tab.id, pane)
@@ -131,9 +136,14 @@ function TerminalPane({ pane }: TerminalPaneProps) {
                 key={tab.id}
                 pinned={tab.pinned}
                 canClose={canClose}
+                canCloseOthers={canCloseOthers}
+                canCloseToRight={canCloseToRight}
                 onRename={() => setEditingTabId(tab.id)}
                 onUnpin={() => useTerminalStore.getState().unpinTab(tab.id)}
                 onClose={() => closeTab(tab.id, pane)}
+                onCloseToRight={() => closeTabsToRight(tab.id, pane)}
+                onCloseOthers={() => closeOtherTabs(tab.id, pane)}
+                onCloseAll={() => closeAllTabs(pane)}
                 onOpenPromptPalette={() => {
                   if (!tab.ptyId) return
                   usePromptPaletteStore.getState().open(tab.ptyId, display)

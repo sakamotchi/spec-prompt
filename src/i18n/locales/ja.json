@@ -45,6 +45,12 @@
     "empty": "ファイルを選択してください",
     "tooltip": {
       "split": "コンテンツを左右分割"
+    },
+    "tabMenu": {
+      "close": "タブを閉じる",
+      "closeToRight": "右側のタブを閉じる",
+      "closeOthers": "その他のタブを閉じる",
+      "closeAll": "すべてのタブを閉じる"
     }
   },
   "mainArea": {
@@ -69,7 +75,10 @@
     "tabMenu": {
       "rename": "タブ名を変更",
       "unpinTitle": "自動タイトルに戻す",
-      "close": "タブを閉じる"
+      "close": "タブを閉じる",
+      "closeToRight": "右側のタブを閉じる",
+      "closeOthers": "その他のタブを閉じる",
+      "closeAll": "すべてのタブを閉じる"
     },
     "error": {
       "ptyStart": "PTY 起動エラー: {{error}}"

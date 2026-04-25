@@ -2,7 +2,9 @@ import { useCallback } from 'react'
 import { X, Columns2 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import type { ContentTab } from '../../stores/contentStore'
+import { useContentStore } from '../../stores/contentStore'
 import { useTabDndStore } from '../../stores/tabDndStore'
+import { ContentTabContextMenu } from './ContentTabContextMenu'
 
 const DRAG_MIME = 'application/x-sddesk-tab'
 
@@ -30,6 +32,9 @@ export function ContentTabBar({
   onToggleSplit,
 }: ContentTabBarProps) {
   const { t } = useTranslation()
+  const closeAllTabs = useContentStore((s) => s.closeAllTabs)
+  const closeOtherTabs = useContentStore((s) => s.closeOtherTabs)
+  const closeTabsToRight = useContentStore((s) => s.closeTabsToRight)
   // Tauri 環境では HTML5 dragover/drop が JS に届かないため、実際のドロップ判定は
   // TabDndCoordinator 側で onDragDropEvent を受けて行う。ここではハイライト表示のみ購読する。
   const isDragOver = useTabDndStore(
@@ -79,38 +84,51 @@ export function ContentTabBar({
       onDrop={handleDrop}
     >
       <div className="flex items-center flex-1 overflow-x-auto min-w-0">
-        {tabs.map((tab) => {
+        {tabs.map((tab, index) => {
           const isActive = tab.id === activeTabId
           const label = tab.filePath
             ? (tab.filePath.split('/').pop() ?? tab.filePath)
             : t('content.newTab')
+          const canClose = tabs.length > 1
+          const canCloseOthers = tabs.length > 1
+          const canCloseToRight = index < tabs.length - 1
           return (
-            <button
+            <ContentTabContextMenu
               key={tab.id}
-              draggable
-              onDragStart={(e) => handleDragStart(e, tab.id)}
-              onClick={() => onTabClick(tab.id)}
-              className="flex items-center gap-1.5 h-full px-3 text-xs flex-shrink-0 transition-colors outline-none group cursor-grab active:cursor-grabbing"
-              style={{
-                color: isActive ? 'var(--color-text-primary)' : 'var(--color-text-muted)',
-                borderBottom: isActive
-                  ? '2px solid var(--color-accent)'
-                  : '2px solid transparent',
-              }}
+              canClose={canClose}
+              canCloseOthers={canCloseOthers}
+              canCloseToRight={canCloseToRight}
+              onClose={() => onTabClose(tab.id, pane)}
+              onCloseToRight={() => closeTabsToRight(tab.id, pane)}
+              onCloseOthers={() => closeOtherTabs(tab.id, pane)}
+              onCloseAll={() => closeAllTabs(pane)}
             >
-              <span className="max-w-[140px] truncate">{label}</span>
-              {tabs.length > 1 && (
-                <span
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    onTabClose(tab.id, pane)
-                  }}
-                  className="flex items-center justify-center w-4 h-4 rounded opacity-0 group-hover:opacity-100 transition-opacity hover:bg-white/10 cursor-default"
-                >
-                  <X size={10} />
-                </span>
-              )}
-            </button>
+              <button
+                draggable
+                onDragStart={(e) => handleDragStart(e, tab.id)}
+                onClick={() => onTabClick(tab.id)}
+                className="flex items-center gap-1.5 h-full px-3 text-xs flex-shrink-0 transition-colors outline-none group cursor-grab active:cursor-grabbing"
+                style={{
+                  color: isActive ? 'var(--color-text-primary)' : 'var(--color-text-muted)',
+                  borderBottom: isActive
+                    ? '2px solid var(--color-accent)'
+                    : '2px solid transparent',
+                }}
+              >
+                <span className="max-w-[140px] truncate">{label}</span>
+                {canClose && (
+                  <span
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      onTabClose(tab.id, pane)
+                    }}
+                    className="flex items-center justify-center w-4 h-4 rounded opacity-0 group-hover:opacity-100 transition-opacity hover:bg-white/10 cursor-default"
+                  >
+                    <X size={10} />
+                  </span>
+                )}
+              </button>
+            </ContentTabContextMenu>
           )
         })}
       </div>

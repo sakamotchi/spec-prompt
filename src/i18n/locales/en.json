@@ -45,6 +45,12 @@
     "empty": "Select a file to view",
     "tooltip": {
       "split": "Split Content"
+    },
+    "tabMenu": {
+      "close": "Close Tab",
+      "closeToRight": "Close Tabs to the Right",
+      "closeOthers": "Close Other Tabs",
+      "closeAll": "Close All Tabs"
     }
   },
   "mainArea": {
@@ -69,7 +75,10 @@
     "tabMenu": {
       "rename": "Rename Tab",
       "unpinTitle": "Restore Automatic Title",
-      "close": "Close Tab"
+      "close": "Close Tab",
+      "closeToRight": "Close Tabs to the Right",
+      "closeOthers": "Close Other Tabs",
+      "closeAll": "Close All Tabs"
     },
     "error": {
       "ptyStart": "PTY startup error: {{error}}"

@@ -23,6 +23,9 @@ interface ContentState {
 
   openFile: (filePath: string, pane?: 'primary' | 'secondary') => void
   closeTab: (id: string, pane: 'primary' | 'secondary') => void
+  closeAllTabs: (pane: 'primary' | 'secondary') => void
+  closeOtherTabs: (id: string, pane: 'primary' | 'secondary') => void
+  closeTabsToRight: (id: string, pane: 'primary' | 'secondary') => void
   setActiveTab: (id: string, pane: 'primary' | 'secondary') => void
   setFocusedPane: (pane: 'primary' | 'secondary') => void
   setTabContent: (tabId: string, filePath: string, content: string, viewMode: ViewMode) => void
@@ -116,6 +119,35 @@ export const useContentStore = create<ContentState>((set) => ({
         [pane]: {
           tabs: newTabs,
           activeTabId: group.activeTabId === id ? fallback : group.activeTabId,
+        },
+      }
+    }),
+
+  closeAllTabs: (pane) =>
+    set(() => {
+      const empty = makeTab()
+      return { [pane]: { tabs: [empty], activeTabId: empty.id } }
+    }),
+
+  closeOtherTabs: (id, pane) =>
+    set((state) => {
+      const group = state[pane]
+      const target = group.tabs.find((t) => t.id === id)
+      if (!target || group.tabs.length <= 1) return state
+      return { [pane]: { tabs: [target], activeTabId: target.id } }
+    }),
+
+  closeTabsToRight: (id, pane) =>
+    set((state) => {
+      const group = state[pane]
+      const idx = group.tabs.findIndex((t) => t.id === id)
+      if (idx < 0 || idx === group.tabs.length - 1) return state
+      const newTabs = group.tabs.slice(0, idx + 1)
+      const stillActive = newTabs.some((t) => t.id === group.activeTabId)
+      return {
+        [pane]: {
+          tabs: newTabs,
+          activeTabId: stillActive ? group.activeTabId : id,
         },
       }
     }),
