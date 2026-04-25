@@ -3,6 +3,7 @@ import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
 import { tauriApi } from '../lib/tauriApi'
 import type { SkillMetadata } from '../lib/slashSuggestItem'
+import { migrateLegacyKey } from '../lib/legacyStorageMigration'
 
 export type PromptPaletteTextareaRef = RefObject<HTMLTextAreaElement | null>
 
@@ -78,7 +79,9 @@ export interface PromptPaletteState {
 }
 
 const HISTORY_LIMIT = 100
-const PERSIST_KEY = 'spec-prompt:prompt-palette'
+const PERSIST_KEY = 'sddesk:prompt-palette'
+// SpecPrompt → SDDesk 改名 (2026-04-21) の旧キー
+migrateLegacyKey('spec-prompt:prompt-palette', PERSIST_KEY)
 
 function generateId(): string {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {

@@ -15,19 +15,19 @@ describe('windowSession', () => {
   describe('saveMySession', () => {
     it('localStorage にキーが書き込まれる', () => {
       saveMySession('window-abc', '/path/to/project')
-      expect(localStorage.getItem('specprompt-win-window-abc')).not.toBeNull()
+      expect(localStorage.getItem('sddesk-win-window-abc')).not.toBeNull()
     })
 
     it('projectRoot が null でも保存できる', () => {
       saveMySession('window-abc', null)
-      const raw = localStorage.getItem('specprompt-win-window-abc')
+      const raw = localStorage.getItem('sddesk-win-window-abc')
       expect(raw).not.toBeNull()
       expect(JSON.parse(raw!).projectRoot).toBeNull()
     })
 
     it('保存した projectRoot を取り出せる', () => {
       saveMySession('window-xyz', '/my/project')
-      const raw = localStorage.getItem('specprompt-win-window-xyz')
+      const raw = localStorage.getItem('sddesk-win-window-xyz')
       expect(JSON.parse(raw!).projectRoot).toBe('/my/project')
     })
   })
@@ -36,7 +36,7 @@ describe('windowSession', () => {
     it('保存したキーを削除する', () => {
       saveMySession('window-abc', '/path')
       clearMySession('window-abc')
-      expect(localStorage.getItem('specprompt-win-window-abc')).toBeNull()
+      expect(localStorage.getItem('sddesk-win-window-abc')).toBeNull()
     })
   })
 
@@ -45,7 +45,7 @@ describe('windowSession', () => {
       saveMySession('window-1', '/project/a')
       saveMySession('window-2', '/project/b')
       consolidateAndSave()
-      const raw = localStorage.getItem('specprompt-window-sessions')
+      const raw = localStorage.getItem('sddesk-window-sessions')
       expect(raw).not.toBeNull()
       const sessions = JSON.parse(raw!)
       expect(sessions).toHaveLength(2)
@@ -54,13 +54,13 @@ describe('windowSession', () => {
     it('統合後、per-window キーが削除される', () => {
       saveMySession('window-1', '/project/a')
       consolidateAndSave()
-      expect(localStorage.getItem('specprompt-win-window-1')).toBeNull()
+      expect(localStorage.getItem('sddesk-win-window-1')).toBeNull()
     })
 
     it('per-window キーがない場合、consolidated キーを削除する', () => {
-      localStorage.setItem('specprompt-window-sessions', '[]')
+      localStorage.setItem('sddesk-window-sessions', '[]')
       consolidateAndSave()
-      expect(localStorage.getItem('specprompt-window-sessions')).toBeNull()
+      expect(localStorage.getItem('sddesk-window-sessions')).toBeNull()
     })
   })
 
@@ -91,13 +91,13 @@ describe('windowSession', () => {
       saveMySession('window-1', '/a')
       consolidateAndSave()
       clearWindowSessions()
-      expect(localStorage.getItem('specprompt-window-sessions')).toBeNull()
+      expect(localStorage.getItem('sddesk-window-sessions')).toBeNull()
     })
 
     it('残留 per-window キーも削除する', () => {
       saveMySession('window-1', '/a')
       clearWindowSessions()
-      expect(localStorage.getItem('specprompt-win-window-1')).toBeNull()
+      expect(localStorage.getItem('sddesk-win-window-1')).toBeNull()
     })
   })
 })

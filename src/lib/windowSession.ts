@@ -2,15 +2,24 @@
  * ウィンドウセッション管理
  *
  * 方式:
- *   - 追加ウィンドウは自身の projectRoot を `specprompt-win-{label}` キーに随時保存する
- *   - メインウィンドウが閉じるとき、全 `specprompt-win-*` キーを読み取って
- *     `specprompt-window-sessions` に統合保存する
+ *   - 追加ウィンドウは自身の projectRoot を `sddesk-win-{label}` キーに随時保存する
+ *   - メインウィンドウが閉じるとき、全 `sddesk-win-*` キーを読み取って
+ *     `sddesk-window-sessions` に統合保存する
  *   - 追加ウィンドウが明示的に閉じられたとき、自身のキーを削除する
  *   - 次回起動時、メインウィンドウは統合セッションを読み取って追加ウィンドウを復元する
  */
 
-const CONSOLIDATED_KEY = 'specprompt-window-sessions'
-const PER_WINDOW_PREFIX = 'specprompt-win-'
+import { migrateLegacyKey, migrateLegacyKeyPrefix } from './legacyStorageMigration'
+
+const CONSOLIDATED_KEY = 'sddesk-window-sessions'
+const PER_WINDOW_PREFIX = 'sddesk-win-'
+
+// SpecPrompt → SDDesk 改名 (2026-04-21) の旧キー
+const LEGACY_CONSOLIDATED_KEY = 'specprompt-window-sessions'
+const LEGACY_PER_WINDOW_PREFIX = 'specprompt-win-'
+
+migrateLegacyKey(LEGACY_CONSOLIDATED_KEY, CONSOLIDATED_KEY)
+migrateLegacyKeyPrefix(LEGACY_PER_WINDOW_PREFIX, PER_WINDOW_PREFIX)
 
 export interface WindowSession {
   label: string

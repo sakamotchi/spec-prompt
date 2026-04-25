@@ -5,7 +5,7 @@ import { useContentStore } from '../stores/contentStore'
 import { tauriApi } from '../lib/tauriApi'
 import { toast } from '../components/Toast'
 
-export const TREE_DND_MIME = 'text/x-spec-prompt-paths'
+export const TREE_DND_MIME = 'text/x-sddesk-paths'
 
 export type DropOperation = 'move' | 'copy'
 

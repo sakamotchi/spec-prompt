@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next'
 import type { ContentTab } from '../../stores/contentStore'
 import { useTabDndStore } from '../../stores/tabDndStore'
 
-const DRAG_MIME = 'application/x-specprompt-tab'
+const DRAG_MIME = 'application/x-sddesk-tab'
 
 interface ContentTabBarProps {
   tabs: ContentTab[]

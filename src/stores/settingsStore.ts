@@ -1,11 +1,14 @@
 import { create } from 'zustand'
 import { tauriApi } from '../lib/tauriApi'
 import i18n from '../i18n'
+import { migrateLegacyKey } from '../lib/legacyStorageMigration'
 
 export type Theme = 'dark' | 'light' | 'system'
 export type Language = 'ja' | 'en'
 
-const LANGUAGE_KEY = 'spec-prompt-language'
+const LANGUAGE_KEY = 'sddesk-language'
+// SpecPrompt → SDDesk 改名 (2026-04-21) の旧キー
+migrateLegacyKey('spec-prompt-language', LANGUAGE_KEY)
 
 export interface AppearanceSettings {
   theme: Theme

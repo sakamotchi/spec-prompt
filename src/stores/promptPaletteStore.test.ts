@@ -11,7 +11,7 @@ vi.mock('../lib/tauriApi', () => ({
 }))
 
 function resetStore() {
-  localStorage.removeItem('spec-prompt:prompt-palette')
+  localStorage.removeItem('sddesk:prompt-palette')
   usePromptPaletteStore.setState({
     isOpen: false,
     targetPtyId: null,
@@ -374,7 +374,7 @@ describe('promptPaletteStore — Phase 1: 履歴・テンプレート基盤', ()
     it('history と templates は localStorage に書き出される', () => {
       usePromptPaletteStore.getState().pushHistory('persisted')
       usePromptPaletteStore.getState().upsertTemplate({ name: 'keep', body: 'body' })
-      const raw = localStorage.getItem('spec-prompt:prompt-palette')
+      const raw = localStorage.getItem('sddesk:prompt-palette')
       expect(raw).toBeTruthy()
       const parsed = JSON.parse(raw as string) as {
         state: { history: Array<{ body: string }>; templates: Array<{ name: string }> }
@@ -390,7 +390,7 @@ describe('promptPaletteStore — Phase 1: 履歴・テンプレート基盤', ()
       s.open('pty-1', 'zsh')
       s.setDraft('pty-1', 'runtime only')
       s.openDropdown('history')
-      const raw = localStorage.getItem('spec-prompt:prompt-palette')
+      const raw = localStorage.getItem('sddesk:prompt-palette')
       expect(raw).toBeTruthy()
       const parsed = JSON.parse(raw as string) as { state: Record<string, unknown> }
       expect(parsed.state).not.toHaveProperty('drafts')
@@ -412,7 +412,7 @@ describe('promptPaletteStore — Phase 1: 履歴・テンプレート基盤', ()
       })
       // persist middleware は setState を同期で localStorage に書き出す。
       usePromptPaletteStore.getState().upsertTemplate({ name: 'trigger', body: 'x' })
-      const raw = localStorage.getItem('spec-prompt:prompt-palette')
+      const raw = localStorage.getItem('sddesk:prompt-palette')
       expect(raw).toBeTruthy()
       const parsed = JSON.parse(raw as string) as { state: Record<string, unknown> }
       expect(parsed.state).not.toHaveProperty('skills')

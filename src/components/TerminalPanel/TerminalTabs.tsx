@@ -10,7 +10,7 @@ import { TabContextMenu } from './TabContextMenu'
 import { TerminalBodyContextMenu } from './TerminalBodyContextMenu'
 import { useTabDndStore } from '../../stores/tabDndStore'
 
-const DRAG_MIME = 'application/x-specprompt-tab'
+const DRAG_MIME = 'application/x-sddesk-tab'
 
 interface TerminalPaneProps {
   pane: 'primary' | 'secondary'

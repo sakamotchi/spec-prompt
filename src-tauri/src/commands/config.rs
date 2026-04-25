@@ -1,7 +1,12 @@
 use serde::{Deserialize, Serialize};
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use tauri::Manager;
+
+const APP_DIR: &str = "sddesk";
+const LEGACY_APP_DIR: &str = "spec-prompt";
+const CONFIG_FILENAME: &str = "config.json";
+const MIGRATED_SUFFIX: &str = "config.json.migrated";
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AppearanceSettings {
@@ -52,8 +57,37 @@ fn config_path(app: &tauri::AppHandle) -> Result<PathBuf, String> {
         .path()
         .config_dir()
         .map_err(|e| e.to_string())?
-        .join("spec-prompt");
-    Ok(dir.join("config.json"))
+        .join(APP_DIR);
+    Ok(dir.join(CONFIG_FILENAME))
+}
+
+fn legacy_config_path(app: &tauri::AppHandle) -> Result<PathBuf, String> {
+    let dir = app
+        .path()
+        .config_dir()
+        .map_err(|e| e.to_string())?
+        .join(LEGACY_APP_DIR);
+    Ok(dir.join(CONFIG_FILENAME))
+}
+
+/// 旧 `spec-prompt/config.json` を新 `sddesk/config.json` へ移行する。
+/// 新パス存在時・旧パス非存在時は no-op。
+/// 移行後の旧ファイルは `config.json.migrated` にリネームして保全する
+/// （削除はしない：ユーザーが手動で残したい場合の安全策）。
+fn migrate_legacy_config_file(legacy_path: &Path, new_path: &Path) -> Result<bool, String> {
+    if new_path.exists() {
+        return Ok(false);
+    }
+    if !legacy_path.exists() {
+        return Ok(false);
+    }
+    if let Some(dir) = new_path.parent() {
+        fs::create_dir_all(dir).map_err(|e| e.to_string())?;
+    }
+    fs::copy(legacy_path, new_path).map_err(|e| e.to_string())?;
+    let backup = legacy_path.with_file_name(MIGRATED_SUFFIX);
+    let _ = fs::rename(legacy_path, &backup);
+    Ok(true)
 }
 
 fn load_config(app: &tauri::AppHandle) -> Config {
@@ -61,6 +95,9 @@ fn load_config(app: &tauri::AppHandle) -> Config {
         Ok(p) => p,
         Err(_) => return Config::default(),
     };
+    if let Ok(legacy) = legacy_config_path(app) {
+        let _ = migrate_legacy_config_file(&legacy, &path);
+    }
     let Ok(data) = fs::read_to_string(&path) else {
         return Config::default();
     };
@@ -193,5 +230,49 @@ mod tests {
         let config: Config = serde_json::from_str(json).unwrap();
         assert_eq!(config.appearance.theme, "dark");
         assert_eq!(config.appearance.content_font_size, 16);
+    }
+
+    #[test]
+    fn test_migrate_legacy_config_copies_when_new_absent() {
+        let tmp = tempfile::tempdir().unwrap();
+        let legacy = tmp.path().join("spec-prompt").join("config.json");
+        let new_path = tmp.path().join("sddesk").join("config.json");
+        fs::create_dir_all(legacy.parent().unwrap()).unwrap();
+        fs::write(&legacy, r#"{"recent_projects":["/a"]}"#).unwrap();
+
+        let migrated = migrate_legacy_config_file(&legacy, &new_path).unwrap();
+        assert!(migrated, "migration should report true");
+        assert!(new_path.exists(), "new config should exist");
+        assert!(!legacy.exists(), "legacy config should be renamed");
+        let backup = legacy.with_file_name("config.json.migrated");
+        assert!(backup.exists(), "legacy should be kept as .migrated");
+    }
+
+    #[test]
+    fn test_migrate_legacy_config_no_op_when_new_exists() {
+        let tmp = tempfile::tempdir().unwrap();
+        let legacy = tmp.path().join("spec-prompt").join("config.json");
+        let new_path = tmp.path().join("sddesk").join("config.json");
+        fs::create_dir_all(legacy.parent().unwrap()).unwrap();
+        fs::create_dir_all(new_path.parent().unwrap()).unwrap();
+        fs::write(&legacy, r#"{"recent_projects":["/legacy"]}"#).unwrap();
+        fs::write(&new_path, r#"{"recent_projects":["/current"]}"#).unwrap();
+
+        let migrated = migrate_legacy_config_file(&legacy, &new_path).unwrap();
+        assert!(!migrated, "no migration when new exists");
+        let content = fs::read_to_string(&new_path).unwrap();
+        assert!(content.contains("/current"), "new config must be untouched");
+        assert!(legacy.exists(), "legacy must remain untouched");
+    }
+
+    #[test]
+    fn test_migrate_legacy_config_no_op_when_legacy_absent() {
+        let tmp = tempfile::tempdir().unwrap();
+        let legacy = tmp.path().join("spec-prompt").join("config.json");
+        let new_path = tmp.path().join("sddesk").join("config.json");
+
+        let migrated = migrate_legacy_config_file(&legacy, &new_path).unwrap();
+        assert!(!migrated);
+        assert!(!new_path.exists());
     }
 }

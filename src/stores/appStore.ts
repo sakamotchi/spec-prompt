@@ -4,19 +4,17 @@ import { getCurrentWindow } from '@tauri-apps/api/window'
 import type { FileNode, GitFileStatus } from '../lib/tauriApi'
 import { tauriApi } from '../lib/tauriApi'
 import { parseStatus, type DocStatus } from '../lib/frontmatter'
+import { migrateLegacyKey } from '../lib/legacyStorageMigration'
 
 const WINDOW_LABEL = getCurrentWindow().label
-const PERSIST_KEY = `spec-prompt-app-store:${WINDOW_LABEL}`
-const LEGACY_PERSIST_KEY = 'spec-prompt-app-store'
+const PERSIST_KEY = `sddesk-app-store:${WINDOW_LABEL}`
 
+// マイグレーション: より新しい（ラベル付き）legacy を優先し、既存値があればそれを保護する。
+// 1. SpecPrompt 時代のラベル付き legacy (`spec-prompt-app-store:${label}`)
+migrateLegacyKey(`spec-prompt-app-store:${WINDOW_LABEL}`, PERSIST_KEY)
+// 2. さらに古いラベルなし legacy (`spec-prompt-app-store`、main window のみ)
 if (WINDOW_LABEL === 'main') {
-  const legacyValue = localStorage.getItem(LEGACY_PERSIST_KEY)
-  if (legacyValue !== null && localStorage.getItem(PERSIST_KEY) === null) {
-    localStorage.setItem(PERSIST_KEY, legacyValue)
-  }
-  if (legacyValue !== null) {
-    localStorage.removeItem(LEGACY_PERSIST_KEY)
-  }
+  migrateLegacyKey('spec-prompt-app-store', PERSIST_KEY)
 }
 
 function setNodeChildren(nodes: FileNode[], targetPath: string, children: FileNode[]): FileNode[] {

@@ -33,7 +33,7 @@ function makeEvent(
 }
 
 function resetStore() {
-  localStorage.removeItem('spec-prompt:prompt-palette')
+  localStorage.removeItem('sddesk:prompt-palette')
   usePromptPaletteStore.setState({
     isOpen: true,
     targetPtyId: 'pty-1',
