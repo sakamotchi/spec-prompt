@@ -1,6 +1,6 @@
 [package]
 name = "sddesk"
-version = "0.3.2"
+version = "0.3.3"
 description = "SDDesk - 仕様駆動開発のための軽量デスクトップアプリ"
 authors = []
 edition = "2021"
