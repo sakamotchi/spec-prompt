@@ -20,6 +20,7 @@ interface TerminalRendererProps {
   fontFamily: string
   fontSize: number
   theme: 'dark' | 'light'
+  pane?: 'primary' | 'secondary'
 }
 
 function pixelToCell(cssX: number, cssY: number, cw: number, ch: number, dpr: number): CellPos {
@@ -35,7 +36,7 @@ function normalizeSelection(sel: SelectionRange): [SelAnchor, SelAnchor] {
   return startBefore ? [start, end] : [end, start]
 }
 
-export function TerminalRenderer({ ptyId, fontFamily, fontSize, theme }: TerminalRendererProps) {
+export function TerminalRenderer({ ptyId, fontFamily, fontSize, theme, pane }: TerminalRendererProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const cursorCanvasRef = useRef<HTMLCanvasElement>(null)
@@ -612,12 +613,18 @@ export function TerminalRenderer({ ptyId, fontFamily, fontSize, theme }: Termina
     updateInputPosition()
   }, [updateInputPosition])
 
-  // パス挿入など外部操作でフォーカスが外れたとき textarea を再フォーカスする
+  // パス挿入など外部操作でフォーカスが外れたとき textarea を再フォーカスする。
+  // event.detail.pane が指定されていれば自分のペインと一致するものだけ反応する
+  // （分割表示時に逆ペインのターミナルへフォーカスが奪われるのを防ぐ）。
   useEffect(() => {
-    const handler = () => { inputRef.current?.focus({ preventScroll: true }) }
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent<{ pane?: 'primary' | 'secondary' }>).detail
+      if (detail?.pane && pane && detail.pane !== pane) return
+      inputRef.current?.focus({ preventScroll: true })
+    }
     window.addEventListener('terminal:focus', handler)
     return () => window.removeEventListener('terminal:focus', handler)
-  }, [])
+  }, [pane])
 
   // キー入力時に選択解除・スクロール末尾へ戻す処理は useTerminalInput を通じて行うため、
   // PTY への書き込みが発生したタイミングにフックする

@@ -130,6 +130,12 @@ function TerminalPane({ pane }: TerminalPaneProps) {
               if (unread && typeof document !== 'undefined' && document.hasFocus()) {
                 useTerminalStore.getState().clearUnread(tab.id)
               }
+              // タブ切替後にターミナル本体（hidden textarea）へフォーカスを戻す。
+              // display:none → flex の切替反映後に focus する必要があるため 1 フレーム遅延。
+              // 分割時は逆ペインへフォーカスが流れないよう pane を指定する。
+              requestAnimationFrame(() => {
+                window.dispatchEvent(new CustomEvent('terminal:focus', { detail: { pane } }))
+              })
             }
             return (
               <TabContextMenu
@@ -251,7 +257,7 @@ function TerminalPane({ pane }: TerminalPaneProps) {
             >
               <TerminalBodyContextMenu ptyId={tab.ptyId} tabTitle={display}>
                 <div className="w-full h-full">
-                  <TerminalPanel tabId={tab.id} cwd={projectRoot ?? "~"} isActive={isActive} />
+                  <TerminalPanel tabId={tab.id} cwd={projectRoot ?? "~"} isActive={isActive} pane={pane} />
                 </div>
               </TerminalBodyContextMenu>
             </div>

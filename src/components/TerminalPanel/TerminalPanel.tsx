@@ -15,9 +15,10 @@ interface TerminalPanelProps {
   tabId: string
   cwd?: string;
   isActive?: boolean;
+  pane?: 'primary' | 'secondary';
 }
 
-export function TerminalPanel({ tabId, cwd = "/" }: TerminalPanelProps) {
+export function TerminalPanel({ tabId, cwd = "/", pane }: TerminalPanelProps) {
   const terminalFontFamily = useSettingsStore((s) => s.terminalFontFamily)
   const terminalFontSize = useSettingsStore((s) => s.terminalFontSize)
   const theme = useSettingsStore((s) => s.theme)
@@ -84,6 +85,7 @@ export function TerminalPanel({ tabId, cwd = "/" }: TerminalPanelProps) {
       fontFamily={terminalFontFamily}
       fontSize={terminalFontSize}
       theme={resolvedTheme}
+      pane={pane}
     />
   )
 }
