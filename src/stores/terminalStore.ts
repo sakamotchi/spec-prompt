@@ -44,6 +44,10 @@ interface TerminalState {
   moveTab: (tabId: string, fromPane: 'primary' | 'secondary', toPane: 'primary' | 'secondary') => void
   toggleSplit: () => void
   setFocusedPane: (pane: 'primary' | 'secondary') => void
+  /** pty_id を逆引きしてタブ位置を返す。通知クリックからのアクティブ化に使う */
+  findLocationByPtyId: (
+    ptyId: string,
+  ) => { pane: 'primary' | 'secondary'; tabId: string } | null
   // ショートカット用アクション
   closeActiveTab: (pane: 'primary' | 'secondary') => void
   activateTabByIndex: (index: number, pane: 'primary' | 'secondary') => void
@@ -100,7 +104,7 @@ function notifyPromptPaletteOfPtyClosed(ptyId: string | null | undefined) {
   }
 }
 
-export const useTerminalStore = create<TerminalState>((set) => ({
+export const useTerminalStore = create<TerminalState>((set, get) => ({
   primary: makeGroup(1),
   secondary: makeGroup(1),
   splitEnabled: false,
@@ -331,6 +335,15 @@ export const useTerminalStore = create<TerminalState>((set) => ({
   toggleSplit: () => set((state) => ({ splitEnabled: !state.splitEnabled })),
 
   setFocusedPane: (pane) => set({ focusedPane: pane }),
+
+  findLocationByPtyId: (ptyId) => {
+    const state = get()
+    for (const pane of ['primary', 'secondary'] as const) {
+      const tab = state[pane].tabs.find((t) => t.ptyId === ptyId)
+      if (tab) return { pane, tabId: tab.id }
+    }
+    return null
+  },
 
   closeActiveTab: (pane) =>
     set((state) => {
