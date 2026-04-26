@@ -6,6 +6,13 @@
 
 ## [Unreleased]
 
+## [0.3.3] - 2026-04-26
+
+### Added
+- OS 通知クリックで発信元 SDDesk ウィンドウをフォアグラウンド化し、発信元 PTY に紐づくターミナルタブを自動アクティブ化 (#11)
+  - コンテンツモード表示中の場合はターミナルモードへ自動切替
+  - 複数ウィンドウ運用に対応（`is_app_focused` を `is_window_focused(label)` に置換、対象ウィンドウのみへ `notification-activate` を `emit_to`）
+
 ## [0.3.0] - 2026-04-25
 
 ### Changed
