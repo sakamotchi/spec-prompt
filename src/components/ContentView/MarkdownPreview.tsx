@@ -7,6 +7,18 @@ import { useContentStore } from '../../stores/contentStore'
 import { toFontFamilyCSS } from '../../lib/fontFamily'
 import { useTabScroll } from './useTabScroll'
 
+const HTML_ESCAPE: Record<string, string> = {
+  '&': '&amp;',
+  '<': '&lt;',
+  '>': '&gt;',
+  '"': '&quot;',
+  "'": '&#39;',
+}
+
+function escapeHtml(s: string): string {
+  return s.replace(/[&<>"']/g, (c) => HTML_ESCAPE[c]!)
+}
+
 function resolveRelativePath(basePath: string, href: string): string {
   const parts = basePath.split('/')
   parts.pop() // ファイル名を除いてディレクトリ部分だけにする
@@ -82,8 +94,13 @@ export function MarkdownPreview({
           const { svg } = await mermaid.render(id, code)
           const wrapper = el.closest('pre') ?? el
           wrapper.outerHTML = `<div class="mermaid-diagram">${svg}</div>`
-        } catch {
-          // 構文エラーでもクラッシュしない
+        } catch (err) {
+          const message = err instanceof Error ? err.message : String(err)
+          const wrapper = el.closest('pre') ?? el
+          wrapper.outerHTML = `<div class="mermaid-error" role="alert"><div class="mermaid-error-title">Mermaid 構文エラー</div><pre class="mermaid-error-message">${escapeHtml(message)}</pre><details class="mermaid-error-source"><summary>元のコード</summary><pre><code>${escapeHtml(code)}</code></pre></details></div>`
+          // mermaid.render が失敗時に DOM 末尾へ残す一時要素を掃除
+          document.getElementById(id)?.remove()
+          document.getElementById(`d${id}`)?.remove()
         }
       })
     })

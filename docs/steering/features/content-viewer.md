@@ -31,6 +31,7 @@
 |--------|------|------|
 | CV-01 | MDレンダリング | `unified` (remark + rehype) でMarkdown → HTMLに変換して表示する |
 | CV-02 | Mermaidダイアグラム | Mermaidのコードブロック（` ```mermaid `）をSVGにレンダリングする |
+| CV-02a | Mermaid 構文エラー表示 | Mermaid のレンダリングが失敗した場合、エラーパネルに見出し・エラーメッセージ・元のコード（折りたたみ）を表示する。他のコードブロックの描画は止めない |
 | CV-03 | コードハイライト | MDファイル内のコードブロックをShikiでシンタックスハイライトする |
 | CV-04 | テーブル | GFM（GitHub Flavored Markdown）のテーブルをHTMLテーブルとして表示する |
 | CV-05 | リンク | リンクはデフォルトブラウザで開く（Tauri `opener` プラグイン使用） |
