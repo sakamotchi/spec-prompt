@@ -5,7 +5,7 @@ use std::thread;
 
 use portable_pty::{CommandBuilder, NativePtySystem, PtySize, PtySystem};
 use serde::Serialize;
-use tauri::{AppHandle, Emitter, Manager, State};
+use tauri::{AppHandle, Emitter, Manager, State, WebviewWindow};
 
 use crate::terminal::TerminalManager;
 
@@ -23,6 +23,9 @@ struct PtyInstance {
 pub struct PtyManager {
     instances: Mutex<HashMap<String, PtyInstance>>,
     next_id: Mutex<u32>,
+    /// pty_id → spawn 元の WebviewWindow ラベル。
+    /// 通知クリック復帰先の解決と `is_window_focused` 判定に使う。
+    window_labels: Mutex<HashMap<String, String>>,
 }
 
 impl PtyManager {
@@ -30,8 +33,10 @@ impl PtyManager {
         Self {
             instances: Mutex::new(HashMap::new()),
             next_id: Mutex::new(0),
+            window_labels: Mutex::new(HashMap::new()),
         }
     }
+
 }
 
 #[tauri::command]
@@ -40,6 +45,7 @@ pub fn spawn_pty(
     cwd: String,
     notification_enabled: bool,
     app: AppHandle,
+    webview_window: WebviewWindow,
     manager: State<PtyManager>,
     terminal_manager: State<TerminalManager>,
 ) -> Result<String, String> {
@@ -127,6 +133,12 @@ pub fn spawn_pty(
         id
     };
 
+    // pty_id → spawn 元ウィンドウラベルを登録（通知クリック復帰先として参照する）
+    let window_label = webview_window.label().to_string();
+    if let Ok(mut g) = manager.window_labels.lock() {
+        g.insert(id.clone(), window_label.clone());
+    }
+
     // TerminalInstance を生成・登録
     use crate::terminal::instance::TerminalInstance;
     terminal_manager.insert(
@@ -137,6 +149,7 @@ pub fn spawn_pty(
     // PTY 出力を Tauri イベントとしてフロントエンドにストリーミングするスレッド
     // AppHandle を clone してスレッドに移動し、内部で TerminalManager を取得する
     let pty_id = id.clone();
+    let pty_window_label = window_label.clone();
     thread::spawn(move || {
         let mut buf = [0u8; 4096];
         let mut osc9 = crate::commands::notification::Osc9Detector::new();
@@ -146,16 +159,26 @@ pub fn spawn_pty(
                 Ok(n) => {
                     // OSC 9 通知検出
                     for msg in osc9.feed(&buf[..n]) {
-                        if !crate::commands::notification::is_app_focused(&app) {
+                        // 発信元ウィンドウがフォーカス中なら通知を抑制（既存挙動を維持）
+                        if !crate::commands::notification::is_window_focused(
+                            &app,
+                            &pty_window_label,
+                        ) {
                             let cache = app.state::<crate::commands::notification::DisplayTitleCache>();
                             let title = cache
                                 .get(&pty_id)
                                 .map(|t| format!("Claude Code — {}", t))
                                 .unwrap_or_else(|| "SDDesk / Claude Code".to_string());
+                            // クリックでこのウィンドウ・このタブへ復帰させる
+                            let target = crate::commands::notification::ClickTarget {
+                                window_label: pty_window_label.clone(),
+                                pty_id: Some(pty_id.clone()),
+                            };
                             crate::commands::notification::send_native_notification(
                                 &app,
                                 &title,
                                 &msg,
+                                Some(target),
                             );
 
                             // フロントに未読マーク指示を送る
@@ -235,6 +258,9 @@ pub fn close_pty(
     title_cache: State<crate::commands::notification::DisplayTitleCache>,
 ) -> Result<(), String> {
     manager.instances.lock().unwrap().remove(&id);
+    if let Ok(mut g) = manager.window_labels.lock() {
+        g.remove(&id);
+    }
     terminal_manager.remove(&id);
     title_cache.remove(&id);
     Ok(())

@@ -1,9 +1,38 @@
 use std::collections::HashMap;
 use std::sync::Mutex;
 
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Manager};
 use tauri_plugin_notification::NotificationExt;
+
+/// 通知クリック後にフォアグラウンド化するウィンドウ・アクティブ化するタブを示す。
+/// `tauri-plugin-notification` v2.3 系の desktop 実装はクリックハンドラを公開していないため、
+/// 「次にフォーカスが返ってきたタイミングでアクティブ化する目標」をメモリに保持し、
+/// `WindowEvent::Focused(true)` をトリガーに消費するモデルを採用する。
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ClickTarget {
+    pub window_label: String,
+    /// PTY ID。HTTP `/claude-hook/{event}` 経由など解決できない経路では None
+    pub pty_id: Option<String>,
+}
+
+/// 直近に発火された通知のクリック対象。フォーカス復帰のたびに `take` して消費する。
+#[derive(Default)]
+pub struct PendingNotificationTarget {
+    inner: Mutex<Option<ClickTarget>>,
+}
+
+impl PendingNotificationTarget {
+    pub fn set(&self, target: ClickTarget) {
+        if let Ok(mut guard) = self.inner.lock() {
+            *guard = Some(target);
+        }
+    }
+
+    pub fn take(&self) -> Option<ClickTarget> {
+        self.inner.lock().ok().and_then(|mut g| g.take())
+    }
+}
 
 /// pty_id → 表示タイトルのキャッシュ。OSC 9 通知発火時にタイトル差し込みに利用する。
 /// フロントから `set_pty_display_title` コマンドで書き込み、`close_pty` で削除される。
@@ -173,8 +202,9 @@ fn extract_searchable_text(payload: &ClaudeHookPayload) -> String {
     parts.join(" ")
 }
 
-pub fn is_app_focused(app: &AppHandle) -> bool {
-    app.get_webview_window("main")
+/// 任意のウィンドウラベルがフォーカス中かを返す。複数ウィンドウ運用に対応する。
+pub fn is_window_focused(app: &AppHandle, label: &str) -> bool {
+    app.get_webview_window(label)
         .and_then(|w| w.is_focused().ok())
         .unwrap_or(false)
 }
@@ -182,7 +212,23 @@ pub fn is_app_focused(app: &AppHandle) -> bool {
 /// macOS ネイティブ通知を送信する。
 /// プロダクションビルドでは tauri-plugin-notification（SDDesk アイコン表示）、
 /// デバッグビルドでは osascript にフォールバックする。
-pub fn send_native_notification(app: &AppHandle, title: &str, body: &str) {
+///
+/// `target` を指定すると、次にいずれかのウィンドウへフォーカスが返ってきたタイミングで
+/// `WindowEvent::Focused(true)` ハンドラが消費し、対象ウィンドウへ
+/// `notification-activate` を emit_to する（複数ウィンドウ・タブ復帰用途）。
+pub fn send_native_notification(
+    app: &AppHandle,
+    title: &str,
+    body: &str,
+    target: Option<ClickTarget>,
+) {
+    // クリック復帰先を保留キューに登録（None なら従来挙動と同じ）
+    if let Some(target) = target {
+        if let Some(state) = app.try_state::<PendingNotificationTarget>() {
+            state.set(target);
+        }
+    }
+
     // まず tauri-plugin-notification を試行
     let plugin_result = app
         .notification()
@@ -352,12 +398,22 @@ pub fn start_hook_server(app: AppHandle) {
                 let notification_type = classify_notification(&event, &payload);
                 let message = extract_message(&payload);
 
-                // フォーカス中は通知を抑制
-                let focused = is_app_focused(&app);
-                if !focused {
+                // HTTP hook 経由は発信元ウィンドウ・PTY を特定できないため、
+                // ベストエフォートで「いずれかのウィンドウがフォーカス中なら抑制」する既存挙動を維持する。
+                let any_focused = app
+                    .webview_windows()
+                    .keys()
+                    .any(|label| is_window_focused(&app, label));
+                if !any_focused {
                     let title = "SDDesk / Claude Code".to_string();
                     let body = format!("[{}] {}", notification_type.label(), message);
-                    send_native_notification(&app, &title, &body);
+                    // HTTP 経路では pty_id を解決できないため、復帰先はメインウィンドウへフォールバック。
+                    // 受け側 (`notification-activate`) は pty_id == None ならタブ切替をスキップする。
+                    let target = ClickTarget {
+                        window_label: "main".to_string(),
+                        pty_id: None,
+                    };
+                    send_native_notification(&app, &title, &body, Some(target));
                 }
 
                 let response = tiny_http::Response::from_string("OK");
@@ -375,7 +431,8 @@ pub fn start_hook_server(app: AppHandle) {
 
 #[tauri::command]
 pub fn send_notification(app: AppHandle, title: String, body: String) -> Result<(), String> {
-    send_native_notification(&app, &title, &body);
+    // フロントから明示発火されるケースは戻り先を持たないため target = None
+    send_native_notification(&app, &title, &body, None);
     Ok(())
 }
 
@@ -611,6 +668,45 @@ mod tests {
         cache.remove("pty-0");
         assert_eq!(cache.get("pty-0"), None);
         assert_eq!(cache.get("pty-1").as_deref(), Some("B"));
+    }
+
+    // --- PendingNotificationTarget tests ---
+
+    #[test]
+    fn pending_target_set_and_take() {
+        let pending = PendingNotificationTarget::default();
+        pending.set(ClickTarget {
+            window_label: "main".into(),
+            pty_id: Some("pty-7".into()),
+        });
+        let taken = pending.take().expect("target should be set");
+        assert_eq!(taken.window_label, "main");
+        assert_eq!(taken.pty_id.as_deref(), Some("pty-7"));
+        // take は消費するので 2 回目は None
+        assert!(pending.take().is_none());
+    }
+
+    #[test]
+    fn pending_target_overwrites_previous() {
+        let pending = PendingNotificationTarget::default();
+        pending.set(ClickTarget {
+            window_label: "main".into(),
+            pty_id: Some("pty-1".into()),
+        });
+        pending.set(ClickTarget {
+            window_label: "window-99".into(),
+            pty_id: Some("pty-9".into()),
+        });
+        let taken = pending.take().unwrap();
+        // 後勝ち（短時間に複数発火された場合は最新の通知に倒す）
+        assert_eq!(taken.window_label, "window-99");
+        assert_eq!(taken.pty_id.as_deref(), Some("pty-9"));
+    }
+
+    #[test]
+    fn pending_target_take_when_unset_returns_none() {
+        let pending = PendingNotificationTarget::default();
+        assert!(pending.take().is_none());
     }
 
     #[test]

@@ -10,6 +10,7 @@ use commands::filesystem::{
 };
 use commands::notification::{
     send_notification, set_pty_display_title, start_hook_server, DisplayTitleCache,
+    PendingNotificationTarget,
 };
 use commands::pty::{
     close_pty, extract_terminal_text, resize_pty, resize_terminal, scroll_terminal, spawn_pty,
@@ -17,7 +18,7 @@ use commands::pty::{
 };
 use commands::skills::list_claude_skills;
 use tauri::menu::{MenuBuilder, MenuItem, SubmenuBuilder, WINDOW_SUBMENU_ID};
-use tauri::Emitter;
+use tauri::{Emitter, EventTarget, Manager, WindowEvent};
 use terminal::TerminalManager;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -30,6 +31,31 @@ pub fn run() {
         .manage(PtyManager::new())
         .manage(TerminalManager::new())
         .manage(DisplayTitleCache::new())
+        .manage(PendingNotificationTarget::default())
+        .on_window_event(|window, event| {
+            // 通知クリック復帰: tauri-plugin-notification (desktop) はクリックハンドラを公開していないが、
+            // OS が通知クリックでアプリへフォーカスを返すことを利用し、Focused(true) をトリガーに
+            // 保留中のターゲットを消費して該当ウィンドウへ `notification-activate` を emit_to する。
+            if let WindowEvent::Focused(true) = event {
+                let app = window.app_handle();
+                if let Some(state) = app.try_state::<PendingNotificationTarget>() {
+                    if let Some(target) = state.take() {
+                        let label = target.window_label.clone();
+                        if let Some(target_window) = app.get_webview_window(&label) {
+                            // 最小化からの復帰・別ウィンドウからの切替に備えて show + set_focus を呼ぶ
+                            let _ = target_window.unminimize();
+                            let _ = target_window.show();
+                            let _ = target_window.set_focus();
+                        }
+                        let _ = app.emit_to(
+                            EventTarget::webview_window(&label),
+                            "notification-activate",
+                            serde_json::json!({ "pty_id": target.pty_id }),
+                        );
+                    }
+                }
+            }
+        })
         .setup(|app| {
             start_hook_server(app.handle().clone());
 

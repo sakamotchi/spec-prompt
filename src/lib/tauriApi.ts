@@ -63,6 +63,14 @@ export interface ClaudeNotificationFiredPayload {
   pty_id: string;
 }
 
+// notification-activate イベントの型定義
+// 通知クリックで OS がアプリを前面化したタイミングに、Rust 側 (`on_window_event` Focused(true) ハンドラ)
+// が保留中ターゲットを消費して対象ウィンドウへ emit_to する。pty_id が null の場合は
+// HTTP hook 経由などで発信元 PTY を特定できなかったケースで、ウィンドウ復帰のみ行う。
+export interface NotificationActivatePayload {
+  pty_id: string | null;
+}
+
 // pty-exited イベントの型定義（シェル終了などで PTY の読取ループが終了したタイミング）
 export interface PtyExitedPayload {
   id: string;
@@ -120,6 +128,13 @@ export const tauriApi = {
     callback: (payload: ClaudeNotificationFiredPayload) => void,
   ): Promise<UnlistenFn> =>
     listen<ClaudeNotificationFiredPayload>("claude-notification-fired", (event) =>
+      callback(event.payload),
+    ),
+
+  onNotificationActivate: (
+    callback: (payload: NotificationActivatePayload) => void,
+  ): Promise<UnlistenFn> =>
+    listen<NotificationActivatePayload>("notification-activate", (event) =>
       callback(event.payload),
     ),
 

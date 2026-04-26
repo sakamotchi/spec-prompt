@@ -641,3 +641,31 @@ describe('プロンプト編集パレットとの連携（F3-1）', () => {
     expect(usePromptPaletteStore.getState().drafts['pty-a']).toBe('keep')
   })
 })
+
+describe('findLocationByPtyId', () => {
+  beforeEach(resetStore)
+
+  it('primary ペインのタブを正しく逆引きする', () => {
+    const state = useTerminalStore.getState()
+    const tabId = state.primary.tabs[0].id
+    state.setPtyId(tabId, 'pty-100')
+
+    const result = useTerminalStore.getState().findLocationByPtyId('pty-100')
+    expect(result).toEqual({ pane: 'primary', tabId })
+  })
+
+  it('secondary ペインのタブを正しく逆引きする', () => {
+    const state = useTerminalStore.getState()
+    const tabId = state.secondary.tabs[0].id
+    state.setPtyId(tabId, 'pty-200')
+
+    const result = useTerminalStore.getState().findLocationByPtyId('pty-200')
+    expect(result).toEqual({ pane: 'secondary', tabId })
+  })
+
+  it('該当する pty_id がなければ null を返す', () => {
+    expect(
+      useTerminalStore.getState().findLocationByPtyId('pty-unknown'),
+    ).toBeNull()
+  })
+})

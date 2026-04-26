@@ -271,6 +271,42 @@ export function AppLayout() {
     }
   }, [])
 
+  // 通知クリックでフォーカスが返ってきた際、Rust 側 (`on_window_event` Focused(true)) が
+  // emit_to する `notification-activate` を購読し、発信元タブをアクティブ化する。
+  // ・対象ウィンドウへ単一指定で送られてくるため、自ウィンドウ判定は不要
+  // ・pty_id が null の場合はウィンドウ復帰のみ（HTTP hook 経路など発信元 PTY 不明時）
+  useEffect(() => {
+    let disposed = false
+    let unlisten: (() => void) | null = null
+
+    tauriApi
+      .onNotificationActivate(({ pty_id }) => {
+        if (!pty_id) return
+        const termState = useTerminalStore.getState()
+        const location = termState.findLocationByPtyId(pty_id)
+        if (!location) return
+
+        // ターミナルモードでなければ切り替えてから該当タブをアクティブ化
+        const appState = useAppStore.getState()
+        if (appState.activeMainTab !== 'terminal') {
+          appState.setActiveMainTab('terminal')
+        }
+        termState.setActiveTab(location.tabId, location.pane)
+        termState.setFocusedPane(location.pane)
+        termState.clearUnread(location.tabId)
+      })
+      .then((fn) => {
+        if (disposed) fn()
+        else unlisten = fn
+      })
+      .catch(console.error)
+
+    return () => {
+      disposed = true
+      if (unlisten) unlisten()
+    }
+  }, [])
+
   // PTY 終了イベントを購読し、該当タブを自動で閉じる（最後の 1 枚はシェルを再起動）
   useEffect(() => {
     let disposed = false
