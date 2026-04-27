@@ -52,9 +52,55 @@ export function MarkdownPreview({
     : theme
   const shikiTheme = resolvedTheme === 'dark' ? 'github-dark' : 'github-light'
 
+  // 描画前に Mermaid を SVG 化し、結果を html state に含めて setState する。
+  // 外部 DOM 改変方式だと、親再レンダー時に React が dangerouslySetInnerHTML を
+  // 同一文字列でも再適用して巻き戻すため、SVG が消えて元のコード表示に戻ってしまう。
   useEffect(() => {
-    renderMarkdown(content, shikiTheme).then(setHtml)
-  }, [content, shikiTheme])
+    let cancelled = false
+    ;(async () => {
+      const baseHtml = await renderMarkdown(content, shikiTheme)
+      if (cancelled) return
+
+      if (!/language-mermaid/.test(baseHtml)) {
+        setHtml(baseHtml)
+        return
+      }
+
+      const stage = document.createElement('div')
+      stage.innerHTML = baseHtml
+      const els = stage.querySelectorAll<HTMLElement>(
+        'code.language-mermaid, pre code.language-mermaid',
+      )
+
+      const { default: mermaid } = await import('mermaid')
+      if (cancelled) return
+      mermaid.initialize({
+        startOnLoad: false,
+        theme: resolvedTheme === 'dark' ? 'dark' : 'default',
+      })
+
+      for (const el of Array.from(els)) {
+        const code = el.textContent ?? ''
+        const id = `mermaid-${Math.random().toString(36).slice(2)}`
+        const wrapper = el.closest('pre') ?? el
+        try {
+          const { svg } = await mermaid.render(id, code)
+          wrapper.outerHTML = `<div class="mermaid-diagram">${svg}</div>`
+        } catch (err) {
+          const message = err instanceof Error ? err.message : String(err)
+          wrapper.outerHTML = `<div class="mermaid-error" role="alert"><div class="mermaid-error-title">Mermaid 構文エラー</div><pre class="mermaid-error-message">${escapeHtml(message)}</pre><details class="mermaid-error-source"><summary>元のコード</summary><pre><code>${escapeHtml(code)}</code></pre></details></div>`
+          // mermaid.render が失敗時に DOM 末尾へ残す一時要素を掃除
+          document.getElementById(id)?.remove()
+          document.getElementById(`d${id}`)?.remove()
+        }
+      }
+
+      if (!cancelled) setHtml(stage.innerHTML)
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [content, shikiTheme, resolvedTheme])
 
   // <img> の src をローカルファイル参照から Tauri の asset プロトコル URL に書き換える。
   // WebView は file://・相対パスを直接読めないため、convertFileSrc でカスタムスキームに変換する。
@@ -76,35 +122,6 @@ export function MarkdownPreview({
       img.setAttribute('src', convertFileSrc(absolute))
     })
   }, [html, filePath])
-
-  // Mermaid レンダリング
-  useEffect(() => {
-    if (!html || !containerRef.current) return
-    const els = containerRef.current.querySelectorAll<HTMLElement>(
-      'code.language-mermaid, pre code.language-mermaid',
-    )
-    if (!els.length) return
-
-    import('mermaid').then(({ default: mermaid }) => {
-      mermaid.initialize({ startOnLoad: false, theme: resolvedTheme === 'dark' ? 'dark' : 'default' })
-      els.forEach(async (el) => {
-        const code = el.textContent ?? ''
-        const id = `mermaid-${Math.random().toString(36).slice(2)}`
-        try {
-          const { svg } = await mermaid.render(id, code)
-          const wrapper = el.closest('pre') ?? el
-          wrapper.outerHTML = `<div class="mermaid-diagram">${svg}</div>`
-        } catch (err) {
-          const message = err instanceof Error ? err.message : String(err)
-          const wrapper = el.closest('pre') ?? el
-          wrapper.outerHTML = `<div class="mermaid-error" role="alert"><div class="mermaid-error-title">Mermaid 構文エラー</div><pre class="mermaid-error-message">${escapeHtml(message)}</pre><details class="mermaid-error-source"><summary>元のコード</summary><pre><code>${escapeHtml(code)}</code></pre></details></div>`
-          // mermaid.render が失敗時に DOM 末尾へ残す一時要素を掃除
-          document.getElementById(id)?.remove()
-          document.getElementById(`d${id}`)?.remove()
-        }
-      })
-    })
-  }, [html, resolvedTheme])
 
   // リンクのクリックを制御する
   // - http/https → デフォルトブラウザで開く
